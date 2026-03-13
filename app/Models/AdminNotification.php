@@ -12,6 +12,7 @@ class AdminNotification extends Model
         'message',
         'type',
         'audience',
+        'user_id',
         'is_active',
         'published_at',
         'expires_at',
@@ -49,10 +50,25 @@ class AdminNotification extends Model
     public function scopeForAudience($query, ?string $role)
     {
         return $query->where(function ($q) use ($role) {
-            $q->where('audience', 'all');
-            if ($role) {
-                $q->orWhere('audience', $role);
+            // Broadcast notifications (no specific user target)
+            $q->where(function ($inner) use ($role) {
+                $inner->whereNull('user_id')
+                    ->where(function ($aq) use ($role) {
+                        $aq->where('audience', 'all');
+                        if ($role) {
+                            $aq->orWhere('audience', $role);
+                        }
+                    });
+            });
+            // Per-user targeted notifications
+            if (auth()->check()) {
+                $q->orWhere('user_id', auth()->id());
             }
         });
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -28,52 +28,80 @@
                     <div class="relative">
                         <button onclick="toggleNotificationPopup()" class="text-gray-600 hover:text-gray-900 relative flex items-center gap-1">
                             Notifications
-                            <span class="notification-badge" style="position: static; margin-left: 4px;">3</span>
+                            @if(($unreadCount ?? 0) > 0)
+                                <span class="notification-badge" id="notifBadge" style="position: static; margin-left: 4px;">{{ $unreadCount }}</span>
+                            @else
+                                <span class="notification-badge hidden" id="notifBadge" style="position: static; margin-left: 4px;">0</span>
+                            @endif
                         </button>
                         
                         <!-- Notification Popup -->
                         <div id="notificationPopup" class="notification-popup">
-                            <div class="p-4 border-b border-gray-200">
-                                <h3 class="text-base font-bold text-gray-900">Notifications</h3>
+                            <div class="p-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-gray-900">Notifications</h3>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="markAllNotificationsRead()" class="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors" title="Mark all as read">
+                                        Mark all as read
+                                    </button>
+                                    <button onclick="toggleCompactMode()" class="compact-toggle-btn text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors" title="Toggle compact view">
+                                        <span class="compact-label">Compact</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="max-h-96 overflow-y-auto">
-                                <div class="p-3">
-                                    <!-- Notification 1 -->
-                                    <div class="notification-item notification-blue mb-2">
-                                        <div class="flex items-start space-x-2">
-                                            <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                            </svg>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-semibold text-gray-900">Your IPCR has been Rated</p>
-                                                <p class="text-xs text-gray-600">By PCHS Dean</p>
+                            <div class="max-h-72 overflow-y-auto">
+                                <div class="p-2.5 notif-list">
+                                    @forelse(($notifications ?? collect()) as $notif)
+                                        @php
+                                            $notifStyles = [
+                                                'info' => 'notification-blue',
+                                                'warning' => 'notification-yellow',
+                                                'success' => 'notification-green',
+                                                'danger' => 'notification-red',
+                                            ];
+                                            $iconColors = [
+                                                'info' => 'text-blue-500',
+                                                'warning' => 'text-yellow-600',
+                                                'success' => 'text-green-500',
+                                                'danger' => 'text-red-500',
+                                            ];
+                                            $isUnread = !in_array($notif->id, $readNotifIds ?? []);
+                                        @endphp
+                                        <div class="notification-item notif-card {{ $notifStyles[$notif->type] ?? 'notification-gray' }} mb-1.5{{ $isUnread ? ' notif-unread' : '' }}" data-notif-id="{{ $notif->id }}">
+                                            <div class="flex items-start space-x-2">
+                                                <svg class="w-3.5 h-3.5 {{ $iconColors[$notif->type] ?? 'text-gray-600' }} mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    @if($notif->type === 'success')
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                                    @elseif($notif->type === 'warning' || $notif->type === 'danger')
+                                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                                    @else
+                                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                                    @endif
+                                                </svg>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <p class="notif-title text-xs font-semibold text-gray-900">{{ $notif->title }}</p>
+                                                        @if($isUnread)
+                                                            <span class="notif-unread-dot w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                                                        @endif
+                                                    </div>
+                                                    <p class="notif-message text-[11px] text-gray-600 mt-0.5">{{ Str::limit($notif->message, 80) }}</p>
+                                                    <p class="notif-time text-[9px] text-gray-400 mt-0.5">{{ ($notif->published_at ?? $notif->created_at)->diffForHumans() }}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <!-- Notification 2 -->
-                                    <div class="notification-item notification-yellow mb-2">
-                                        <div class="flex items-start space-x-2">
-                                            <svg class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                            </svg>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-semibold text-gray-900">Reminder: 5 days left to submit.</p>
-                                                <p class="text-xs text-gray-600">Submit your Jan - Jun 2024 Review before the deadline</p>
+                                    @empty
+                                        <div class="notification-item notification-gray">
+                                            <div class="flex items-start space-x-2">
+                                                <svg class="w-3.5 h-3.5 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                                </svg>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-xs font-semibold text-gray-900">No notifications</p>
+                                                    <p class="text-[11px] text-gray-600">You're all caught up!</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <!-- Notification 3 -->
-                                    <div class="notification-item notification-gray">
-                                        <div class="flex items-start space-x-2">
-                                            <svg class="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                            </svg>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-semibold text-gray-900">System maintenance scheduled</p>
-                                                <p class="text-xs text-gray-600">The system will be down on July 25th from 2-4 AM.</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    @endforelse
                                 </div>
                             </div>
                         </div>
@@ -103,59 +131,16 @@
                 <div class="flex lg:hidden items-center space-x-3">
                     <!-- Notification Bell Icon -->
                     <div class="relative">
-                        <button onclick="toggleNotificationPopupMobile()" class="text-gray-600 hover:text-gray-900 relative">
+                        <button onclick="toggleNotificationPopup()" class="text-gray-600 hover:text-gray-900 relative">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
-                            <span class="notification-badge">3</span>
+                            @if(($unreadCount ?? 0) > 0)
+                                <span class="notification-badge" id="notifBadgeMobile">{{ $unreadCount }}</span>
+                            @else
+                                <span class="notification-badge hidden" id="notifBadgeMobile">0</span>
+                            @endif
                         </button>
-                        
-                        <!-- Notification Popup -->
-                        <div id="notificationPopupMobile" class="notification-popup">
-                            <div class="p-4 border-b border-gray-200">
-                                <h3 class="text-base font-bold text-gray-900">Notifications</h3>
-                            </div>
-                            <div class="max-h-96 overflow-y-auto">
-                                <div class="p-3">
-                                    <!-- Notification 1 -->
-                                    <div class="notification-item notification-blue mb-2">
-                                        <div class="flex items-start space-x-2">
-                                            <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                            </svg>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-semibold text-gray-900">Your IPCR has been Rated</p>
-                                                <p class="text-xs text-gray-600">By PCHS Dean</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Notification 2 -->
-                                    <div class="notification-item notification-yellow mb-2">
-                                        <div class="flex items-start space-x-2">
-                                            <svg class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                            </svg>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-semibold text-gray-900">Reminder: 5 days left to submit.</p>
-                                                <p class="text-xs text-gray-600">Submit your Jan - Jun 2024 Review before the deadline</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Notification 3 -->
-                                    <div class="notification-item notification-gray">
-                                        <div class="flex items-start space-x-2">
-                                            <svg class="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                            </svg>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-semibold text-gray-900">System maintenance scheduled</p>
-                                                <p class="text-xs text-gray-600">The system will be down on July 25th from 2-4 AM.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     
                     <div class="flex items-center">
@@ -430,9 +415,18 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-                                <button type="button" onclick="closeCreateIpcrModal()" class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
-                                <button type="button" onclick="proceedCreateIpcr()" class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">Proceed</button>
+                            <div class="px-6 py-4 border-t border-gray-200">
+                                <div class="mb-3">
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Import from Excel file (optional)</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="file" id="ipcrImportFile" accept=".xlsx,.xls" class="block w-full text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">Upload an .xlsx file with the IPCR layout to auto-fill the document.</p>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" onclick="closeCreateIpcrModal()" class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
+                                    <button type="button" onclick="proceedCreateIpcr()" class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">Proceed</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -501,9 +495,18 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-                                <button type="button" onclick="closeCreateOpcrModal()" class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
-                                <button type="button" onclick="proceedCreateOpcr()" class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">Proceed</button>
+                            <div class="px-6 py-4 border-t border-gray-200">
+                                <div class="mb-3">
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Import from Excel file (optional)</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="file" id="opcrImportFile" accept=".xlsx,.xls" class="block w-full text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">Upload an .xlsx file with the OPCR layout to auto-fill the document.</p>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" onclick="closeCreateOpcrModal()" class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
+                                    <button type="button" onclick="proceedCreateOpcr()" class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">Proceed</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -813,7 +816,7 @@
                                         <i class="fas fa-file-excel"></i> Export
                                     </button>
                                     <button type="button" id="updateSubmissionBtn" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-green-600 hover:bg-green-700 hidden">Update Submission</button>
-                                    <button type="button" id="saveCopyBtn" onclick="saveCopyFromPreview()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700">Edit IPCR</button>
+                                    <button type="button" id="saveCopyBtn" onclick="saveCopyFromPreview()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700">Save</button>
                                     <button type="button" onclick="closeTemplatePreview()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50">Close</button>
                                 </div>
                                 <input type="hidden" id="currentPreviewTemplateId" value="">
@@ -1188,53 +1191,6 @@
                 </div>
                 @endif
 
-                @if(auth()->user()->hasRole('dean'))
-                <!-- Dean: Faculty IPCR Submissions Review -->
-                <div id="deanFacultyReviewSection" class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                    <div class="flex items-center gap-2 mb-3 sm:mb-4">
-                        <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-sm sm:text-base font-bold text-gray-900">Faculty IPCRs</h3>
-                            <p class="text-xs text-gray-500">{{ $departmentCode ?: $departmentName }}</p>
-                        </div>
-                    </div>
-                    <div id="deanFacultySubmissionsList">
-                        <div class="flex justify-center py-4">
-                            <svg class="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Dean: Cross-Calibration with Other Deans -->
-                <div id="deanCalibrationSection" class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                    <div class="flex items-center gap-2 mb-3 sm:mb-4">
-                        <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-sm sm:text-base font-bold text-gray-900">Dean Calibration</h3>
-                            <p class="text-xs text-gray-500">Other deans' IPCRs</p>
-                        </div>
-                    </div>
-                    <div id="deanCalibrationList">
-                        <div class="flex justify-center py-4">
-                            <svg class="animate-spin h-5 w-5 text-amber-500" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
     </div>
@@ -1539,6 +1495,81 @@
             if (modal) {
                 modal.classList.add('hidden');
             }
+            // Reset file input on close
+            const importFile = document.getElementById('ipcrImportFile');
+            if (importFile) importFile.value = '';
+        }
+
+        /**
+         * Upload an xlsx file and populate the IPCR or OPCR document editor.
+         */
+        async function importXlsxFile(file, docType) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('{{ route("faculty.ipcr.import") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (!result.success) {
+                    showAlertModal('error', 'Import Failed', result.message || 'Could not parse the uploaded file.');
+                    return;
+                }
+
+                const data = result.data;
+
+                if (docType === 'ipcr') {
+                    const tableBody = document.getElementById('ipcrTableBody');
+                    if (tableBody && data.table_body_html) {
+                        tableBody.innerHTML = data.table_body_html;
+                        unhideTableColumns();
+                        labelQetaInputs(tableBody);
+                    }
+                    if (data.noted_by) {
+                        const el = document.getElementById('ipcrDocNotedBy');
+                        if (el) el.value = data.noted_by;
+                    }
+                    if (data.approved_by) {
+                        const el = document.getElementById('ipcrDocApprovedBy');
+                        if (el) el.value = data.approved_by;
+                    }
+                    if (data.title) {
+                        const el = document.getElementById('ipcrDocumentTitle');
+                        if (el) el.value = data.title;
+                    }
+                } else {
+                    const tableBody = document.getElementById('opcrTableBody');
+                    if (tableBody && data.table_body_html) {
+                        tableBody.innerHTML = data.table_body_html;
+                        unhideOpcrTableColumns();
+                        labelQetaInputs(tableBody);
+                    }
+                    if (data.noted_by) {
+                        const el = document.getElementById('opcrDocNotedBy');
+                        if (el) el.value = data.noted_by;
+                    }
+                    if (data.approved_by) {
+                        const el = document.getElementById('opcrDocApprovedBy');
+                        if (el) el.value = data.approved_by;
+                    }
+                    if (data.title) {
+                        const el = document.getElementById('opcrDocumentTitle');
+                        if (el) el.value = data.title;
+                    }
+                }
+
+                showAlertModal('success', 'Imported', 'The Excel file has been imported successfully. Review the data and save when ready.');
+            } catch (error) {
+                console.error('Import error:', error);
+                showAlertModal('error', 'Import Error', 'An error occurred while importing the file.');
+            }
         }
 
         function hideIpcrTableColumns() {
@@ -1606,6 +1637,16 @@
             // Hide Export + Save as Template for fresh creation
             document.getElementById('ipcrExportBtn')?.classList.add('hidden');
             document.getElementById('ipcrSaveAsTemplateBtn')?.classList.add('hidden');
+
+            // Check for import file (from create modal input or header button)
+            const importFile = document.getElementById('ipcrImportFile');
+            if (importFile && importFile.files.length > 0) {
+                importXlsxFile(importFile.files[0], 'ipcr');
+                importFile.value = '';
+            } else if (window._pendingHeaderImportFile) {
+                importXlsxFile(window._pendingHeaderImportFile, 'ipcr');
+                window._pendingHeaderImportFile = null;
+            }
 
             // Hide modal and show IPCR document
             closeCreateIpcrModal();
@@ -2190,8 +2231,6 @@
             renderSavedCopies();
             @if(auth()->user()->hasRole('dean'))
             renderOpcrSavedCopies();
-            loadDeanFacultySubmissions();
-            loadDeanCalibrationSubmissions();
             @endif
             
             // Setup update button event listener
@@ -4155,6 +4194,16 @@
             document.getElementById('opcrExportBtn')?.classList.add('hidden');
             document.getElementById('opcrSaveAsTemplateBtn')?.classList.add('hidden');
 
+            // Check for import file (from create modal input or header button)
+            const importFile = document.getElementById('opcrImportFile');
+            if (importFile && importFile.files.length > 0) {
+                importXlsxFile(importFile.files[0], 'opcr');
+                importFile.value = '';
+            } else if (window._pendingHeaderImportFile) {
+                importXlsxFile(window._pendingHeaderImportFile, 'opcr');
+                window._pendingHeaderImportFile = null;
+            }
+
             closeCreateOpcrModal();
 
             document.getElementById('opcrDocumentContainer').classList.remove('hidden');
@@ -5603,264 +5652,6 @@
             );
         };
 
-        // =====================================================
-        // Dean Review Functions
-        // =====================================================
-        @if(auth()->user()->hasRole('dean'))
-
-        // Load faculty submissions for dean's department
-        window.loadDeanFacultySubmissions = async function() {
-            const container = document.getElementById('deanFacultySubmissionsList');
-            if (!container) return;
-
-            try {
-                const response = await fetch('/dean/review/faculty-submissions', {
-                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-                });
-                const data = await response.json();
-
-                if (!data.success || data.submissions.length === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No faculty submissions yet</p>';
-                    return;
-                }
-
-                let html = '';
-                data.submissions.forEach(function(sub) {
-                    html += '<div class="mb-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">' +
-                        '<div class="flex justify-between items-start gap-2">' +
-                            '<div class="flex-1 min-w-0">' +
-                                '<p class="text-sm font-semibold text-gray-900 truncate">' + (sub.user_name || 'Unknown') + '</p>' +
-                                '<p class="text-xs text-gray-600 truncate">' + (sub.title || 'Untitled') + '</p>' +
-                                '<p class="text-xs text-gray-500">' + (sub.school_year || '') + ' &bull; ' + (sub.semester || '') + '</p>' +
-                                '<p class="text-xs text-gray-400">Submitted: ' + (sub.submitted_at || 'N/A') + '</p>' +
-                            '</div>' +
-                            '<div class="flex flex-col gap-1 flex-shrink-0">' +
-                                '<button onclick="viewFacultySubmission(' + sub.id + ')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-1.5 px-3 rounded">View</button>' +
-                                '<span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded text-center">' + (sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'N/A') + '</span>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>';
-                });
-                container.innerHTML = html;
-            } catch (error) {
-                console.error('Error loading faculty submissions:', error);
-                container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Failed to load submissions</p>';
-            }
-        };
-
-        // Load other deans' submissions for calibration
-        window.loadDeanCalibrationSubmissions = async function() {
-            const container = document.getElementById('deanCalibrationList');
-            if (!container) return;
-
-            try {
-                const response = await fetch('/dean/review/dean-submissions', {
-                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-                });
-                const data = await response.json();
-
-                if (!data.success || data.submissions.length === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No other deans\' submissions yet</p>';
-                    return;
-                }
-
-                let html = '';
-                data.submissions.forEach(function(sub) {
-                    html += '<div class="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">' +
-                        '<div class="flex justify-between items-start gap-2">' +
-                            '<div class="flex-1 min-w-0">' +
-                                '<p class="text-sm font-semibold text-gray-900 truncate">' + (sub.user_name || 'Unknown') + '</p>' +
-                                '<p class="text-xs text-amber-700 font-medium">' + (sub.department || 'N/A') + '</p>' +
-                                '<p class="text-xs text-gray-600 truncate">' + (sub.title || 'Untitled') + '</p>' +
-                                '<p class="text-xs text-gray-500">' + (sub.school_year || '') + ' &bull; ' + (sub.semester || '') + '</p>' +
-                                '<p class="text-xs text-gray-400">Submitted: ' + (sub.submitted_at || 'N/A') + '</p>' +
-                            '</div>' +
-                            '<div class="flex flex-col gap-1 flex-shrink-0">' +
-                                '<button onclick="viewDeanSubmission(' + sub.id + ')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-1.5 px-3 rounded">View</button>' +
-                                '<span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded text-center">' + (sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'N/A') + '</span>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>';
-                });
-                container.innerHTML = html;
-            } catch (error) {
-                console.error('Error loading dean submissions:', error);
-                container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Failed to load submissions</p>';
-            }
-        };
-
-        // View a faculty's IPCR submission (read-only in preview modal)
-        window.viewFacultySubmission = async function(submissionId) {
-            try {
-                const response = await fetch('/dean/review/faculty-submissions/' + submissionId, {
-                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-                });
-                const data = await response.json();
-
-                if (data.success && data.submission) {
-                    const submission = data.submission;
-
-                    // Set submission context so SO docs can load for this submission
-                    const submissionIdField = document.getElementById('currentSubmissionIdToUpdate');
-                    if (submissionIdField) submissionIdField.value = submission.id;
-                    const submissionTypeField = document.getElementById('currentSubmissionType');
-                    if (submissionTypeField) submissionTypeField.value = 'ipcr';
-                    const templateIdField = document.getElementById('currentPreviewTemplateId');
-                    if (templateIdField) templateIdField.value = '';
-                    // Track the faculty member's user_id so we query THEIR documents
-                    const ownerIdField = document.getElementById('currentDocumentOwnerId');
-                    if (ownerIdField) ownerIdField.value = submission.user_id || '';
-
-                    // Load table body
-                    const tableBody = document.getElementById('templatePreviewTableBody');
-                    if (tableBody && submission.table_body_html) {
-                        tableBody.innerHTML = submission.table_body_html;
-
-                        // Make all cells read-only with indigo tint
-                        tableBody.querySelectorAll('td').forEach(function(cell) {
-                            cell.setAttribute('contenteditable', 'false');
-                            cell.style.cursor = 'default';
-                            cell.style.userSelect = 'none';
-                            cell.style.backgroundColor = '#eef2ff';
-
-                            // Disable inputs/textareas
-                            cell.querySelectorAll('input, textarea').forEach(function(el) {
-                                el.setAttribute('readonly', 'true');
-                                el.setAttribute('disabled', 'true');
-                                el.style.pointerEvents = 'none';
-                                el.style.backgroundColor = '#eef2ff';
-                            });
-                        });
-                    }
-
-                    // Load title with faculty name
-                    const titleElement = document.getElementById('templatePreviewTitle');
-                    if (titleElement) {
-                        titleElement.textContent = (submission.title || 'IPCR') + ' — ' + (submission.user_name || 'Faculty');
-                    }
-
-                    if (submission.school_year) {
-                        const el = document.getElementById('templatePreviewSchoolYear');
-                        if (el) el.textContent = submission.school_year;
-                    }
-                    if (submission.semester) {
-                        const el = document.getElementById('templatePreviewSemester');
-                        if (el) el.textContent = submission.semester;
-                    }
-
-                    // Unhide all columns
-                    const previewModal = document.getElementById('templatePreviewModal');
-                    if (previewModal) {
-                        previewModal.querySelectorAll('thead th.hidden').forEach(function(h) { h.classList.remove('hidden'); });
-                        previewModal.querySelectorAll('td.hidden').forEach(function(c) { c.classList.remove('hidden'); });
-                    }
-
-                    // Hide all action buttons (read-only mode)
-                    const saveCopyBtn = document.getElementById('saveCopyBtn');
-                    if (saveCopyBtn) { saveCopyBtn.style.display = 'none'; saveCopyBtn.classList.add('hidden'); }
-                    const updateBtn = document.getElementById('updateSubmissionBtn');
-                    if (updateBtn) { updateBtn.classList.add('hidden'); updateBtn.style.display = 'none'; }
-
-                    document.getElementById('templatePreviewModal').classList.remove('hidden');
-
-                    // Attach SO document handlers with faculty's user_id for dean access
-                    attachSoDocumentClickHandlers(submission.user_id);
-                } else {
-                    showAlertModal('error', 'Not Found', 'Faculty submission could not be found.');
-                }
-            } catch (error) {
-                console.error('Error viewing faculty submission:', error);
-                showAlertModal('error', 'Error', 'An error occurred while loading the submission.');
-            }
-        };
-
-        // View another dean's IPCR submission (read-only in preview modal)
-        window.viewDeanSubmission = async function(submissionId) {
-            try {
-                const response = await fetch('/dean/review/dean-submissions/' + submissionId, {
-                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-                });
-                const data = await response.json();
-
-                if (data.success && data.submission) {
-                    const submission = data.submission;
-
-                    // Set submission context so SO docs can load for this submission
-                    const submissionIdField = document.getElementById('currentSubmissionIdToUpdate');
-                    if (submissionIdField) submissionIdField.value = submission.id;
-                    const submissionTypeField = document.getElementById('currentSubmissionType');
-                    if (submissionTypeField) submissionTypeField.value = 'ipcr';
-                    const templateIdField = document.getElementById('currentPreviewTemplateId');
-                    if (templateIdField) templateIdField.value = '';
-                    // Track the dean's user_id so we query THEIR documents
-                    const ownerIdField = document.getElementById('currentDocumentOwnerId');
-                    if (ownerIdField) ownerIdField.value = submission.user_id || '';
-
-                    // Load table body
-                    const tableBody = document.getElementById('templatePreviewTableBody');
-                    if (tableBody && submission.table_body_html) {
-                        tableBody.innerHTML = submission.table_body_html;
-
-                        // Make all cells read-only with amber tint
-                        tableBody.querySelectorAll('td').forEach(function(cell) {
-                            cell.setAttribute('contenteditable', 'false');
-                            cell.style.cursor = 'default';
-                            cell.style.userSelect = 'none';
-                            cell.style.backgroundColor = '#fffbeb';
-
-                            // Disable inputs/textareas
-                            cell.querySelectorAll('input, textarea').forEach(function(el) {
-                                el.setAttribute('readonly', 'true');
-                                el.setAttribute('disabled', 'true');
-                                el.style.pointerEvents = 'none';
-                                el.style.backgroundColor = '#fffbeb';
-                            });
-                        });
-                    }
-
-                    // Load title with dean name and department
-                    const titleElement = document.getElementById('templatePreviewTitle');
-                    if (titleElement) {
-                        const deptLabel = submission.department ? ' (' + submission.department + ')' : '';
-                        titleElement.textContent = (submission.title || 'IPCR') + ' — ' + (submission.user_name || 'Dean') + deptLabel;
-                    }
-
-                    if (submission.school_year) {
-                        const el = document.getElementById('templatePreviewSchoolYear');
-                        if (el) el.textContent = submission.school_year;
-                    }
-                    if (submission.semester) {
-                        const el = document.getElementById('templatePreviewSemester');
-                        if (el) el.textContent = submission.semester;
-                    }
-
-                    // Unhide all columns
-                    const previewModal = document.getElementById('templatePreviewModal');
-                    if (previewModal) {
-                        previewModal.querySelectorAll('thead th.hidden').forEach(function(h) { h.classList.remove('hidden'); });
-                        previewModal.querySelectorAll('td.hidden').forEach(function(c) { c.classList.remove('hidden'); });
-                    }
-
-                    // Hide all action buttons (read-only mode)
-                    const saveCopyBtn = document.getElementById('saveCopyBtn');
-                    if (saveCopyBtn) { saveCopyBtn.style.display = 'none'; saveCopyBtn.classList.add('hidden'); }
-                    const updateBtn = document.getElementById('updateSubmissionBtn');
-                    if (updateBtn) { updateBtn.classList.add('hidden'); updateBtn.style.display = 'none'; }
-
-                    document.getElementById('templatePreviewModal').classList.remove('hidden');
-
-                    // Attach SO document handlers with dean's user_id for cross-dean access
-                    attachSoDocumentClickHandlers(submission.user_id);
-                } else {
-                    showAlertModal('error', 'Not Found', 'Dean submission could not be found.');
-                }
-            } catch (error) {
-                console.error('Error viewing dean submission:', error);
-                showAlertModal('error', 'Error', 'An error occurred while loading the submission.');
-            }
-        };
-
-        @endif
     </script>
 <script>document.body.style.visibility = 'visible';</script>
 </body>

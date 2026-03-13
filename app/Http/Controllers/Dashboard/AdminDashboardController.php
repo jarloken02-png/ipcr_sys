@@ -27,6 +27,7 @@ class AdminDashboardController extends Controller
             ->get();
 
         $notifications = AdminNotification::active()
+            ->whereNull('user_id')
             ->orderByDesc('created_at')
             ->limit(5)
             ->get();

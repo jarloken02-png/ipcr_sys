@@ -9,14 +9,82 @@ window.toggleMobileMenu = function() {
 // Notification popup toggle for desktop
 window.toggleNotificationPopup = function() {
     const popup = document.getElementById('notificationPopup');
-    popup.classList.toggle('active');
+    if (popup) popup.classList.toggle('active');
+};
+
+// Notification popup toggle for mobile — reuses same popup
+window.toggleNotificationPopupMobile = function() {
+    const popup = document.getElementById('notificationPopup');
+    if (popup) popup.classList.toggle('active');
+};
+
+// Close notification popup when clicking outside
+document.addEventListener('click', function(e) {
+    const popup = document.getElementById('notificationPopup');
+    const notificationBtn = e.target.closest('button[onclick*="toggleNotificationPopup"]');
+    if (!notificationBtn && popup && !popup.contains(e.target)) {
+        popup.classList.remove('active');
+    }
+});
+
+// Compact mode for notifications — synced via localStorage
+let compactMode = localStorage.getItem('notif_compact') === '1';
+
+function applyCompactMode() {
+    document.querySelectorAll('.notif-card').forEach(card => {
+        if (compactMode) {
+            card.classList.add('compact-notif');
+            card.querySelectorAll('.notif-message').forEach(m => m.style.display = 'none');
+            card.querySelectorAll('.notif-time').forEach(t => t.style.display = 'none');
+        } else {
+            card.classList.remove('compact-notif');
+            card.querySelectorAll('.notif-message').forEach(m => m.style.display = '');
+            card.querySelectorAll('.notif-time').forEach(t => t.style.display = '');
+        }
+    });
+    document.querySelectorAll('.compact-toggle-btn').forEach(btn => {
+        if (compactMode) {
+            btn.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
+            btn.classList.remove('bg-gray-50', 'border-gray-200', 'text-gray-500');
+        } else {
+            btn.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
+            btn.classList.add('bg-gray-50', 'border-gray-200', 'text-gray-500');
+        }
+    });
+}
+
+window.toggleCompactMode = function() {
+    compactMode = !compactMode;
+    localStorage.setItem('notif_compact', compactMode ? '1' : '0');
+    applyCompactMode();
+};
+
+document.addEventListener('DOMContentLoaded', applyCompactMode);
+
+// Mark all notifications as read
+window.markAllNotificationsRead = function () {
+    fetch('/faculty/notifications/mark-read', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json',
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('#notifBadge, #notifBadgeMobile').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.notif-unread-dot').forEach(dot => dot.remove());
+            document.querySelectorAll('.notif-card.notif-unread').forEach(card => card.classList.remove('notif-unread'));
+        }
+    })
+    .catch(() => {});
 };
 
 // Profile completeness details toggle
 window.toggleCompletenessDetails = function() {
     const details = document.getElementById('completenessDetails');
     const toggle = document.getElementById('completenessToggle');
-    const chevron = toggle?.querySelector('.completeness-chevron');
     
     if (details) {
         details.classList.toggle('hidden');
@@ -30,12 +98,6 @@ window.toggleCompletenessDetails = function() {
     }
 };
 
-// Notification popup toggle for mobile
-window.toggleNotificationPopupMobile = function() {
-    const popup = document.getElementById('notificationPopupMobile');
-    popup.classList.toggle('active');
-};
-
 // Open email verification modal after profile email change
 document.addEventListener('DOMContentLoaded', function() {
     const shouldOpenVerify = sessionStorage.getItem('triggerEmailVerification');
@@ -43,22 +105,6 @@ document.addEventListener('DOMContentLoaded', function() {
         sessionStorage.removeItem('triggerEmailVerification');
         if (typeof window.openEmailVerificationModal === 'function') {
             window.openEmailVerificationModal();
-        }
-    }
-});
-
-// Close notification popups when clicking outside
-document.addEventListener('click', function(e) {
-    const popup = document.getElementById('notificationPopup');
-    const popupMobile = document.getElementById('notificationPopupMobile');
-    const notificationBtn = e.target.closest('button[onclick*="toggleNotificationPopup"]');
-    
-    if (!notificationBtn) {
-        if (popup && !popup.contains(e.target)) {
-            popup.classList.remove('active');
-        }
-        if (popupMobile && !popupMobile.contains(e.target)) {
-            popupMobile.classList.remove('active');
         }
     }
 });

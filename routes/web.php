@@ -20,6 +20,7 @@ use App\Http\Controllers\Faculty\OpcrTemplateController;
 use App\Http\Controllers\Faculty\OpcrSubmissionController;
 use App\Http\Controllers\Faculty\OpcrSavedCopyController;
 use App\Http\Controllers\Faculty\OpcrExportController;
+use App\Http\Controllers\Faculty\IpcrImportController;
 use App\Http\Controllers\Dean\DeanReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -85,6 +86,10 @@ Route::post('/email/verification/verify', [EmailVerificationController::class, '
 Route::get('/faculty/dashboard', [FacultyDashboardController::class, 'index'])
     ->name('faculty.dashboard')
     ->middleware(['auth', 'role:faculty', 'permission:faculty.dashboard']);
+
+Route::post('/faculty/notifications/mark-read', [FacultyDashboardController::class, 'markAllRead'])
+    ->name('faculty.notifications.mark-read')
+    ->middleware(['auth', 'role:faculty']);
 
 Route::get('/faculty/my-ipcrs', [FacultyDashboardController::class, 'myIpcrs'])
     ->name('faculty.my-ipcrs')
@@ -182,6 +187,11 @@ Route::get('/faculty/ipcr/saved-copies/{id}/export', [IpcrExportController::clas
 Route::get('/faculty/ipcr/templates/{id}/export', [IpcrExportController::class, 'exportTemplate'])
     ->name('faculty.ipcr.templates.export')
     ->middleware(['auth', 'role:faculty', 'permission:faculty.ipcr.templates']);
+
+// IPCR/OPCR Import Route
+Route::post('/faculty/ipcr/import', [IpcrImportController::class, 'import'])
+    ->name('faculty.ipcr.import')
+    ->middleware(['auth', 'role:faculty']);
 
 // IPCR Saved Copy Routes
 Route::get('/faculty/ipcr/saved-copies', [IpcrSavedCopyController::class, 'index'])
@@ -337,6 +347,10 @@ Route::get('/dean/review/dean-submissions', [DeanReviewController::class, 'deanS
 Route::get('/dean/review/dean-submissions/{id}', [DeanReviewController::class, 'showDeanSubmission'])
     ->name('dean.review.dean-submission.show')
     ->middleware(['auth', 'role:dean', 'permission:dean.review.deans']);
+
+Route::post('/dean/review/calibrations', [DeanReviewController::class, 'saveCalibration'])
+    ->name('dean.review.calibrations.save')
+    ->middleware(['auth', 'role:dean']);
 
 
 /*

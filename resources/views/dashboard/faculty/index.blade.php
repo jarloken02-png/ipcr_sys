@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Faculty Dashboard - IPCR/OPCR Module</title>
     <link rel="icon" type="image/jpeg" href="{{ asset('images/urs_logo.jpg') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -56,57 +57,76 @@
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
-                            @if(($notifications ?? collect())->count() > 0)
-                                <span class="notification-badge">{{ $notifications->count() }}</span>
+                            @if(($unreadCount ?? 0) > 0)
+                                <span class="notification-badge" id="notifBadge">{{ $unreadCount }}</span>
+                            @else
+                                <span class="notification-badge hidden" id="notifBadge">0</span>
                             @endif
                         </button>
                         
                         <!-- Notification Popup -->
                         <div id="notificationPopup" class="notification-popup">
-                            <div class="p-4 border-b border-gray-200">
-                                <h3 class="text-base font-bold text-gray-900">Notifications</h3>
+                            <div class="p-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-gray-900">Notifications</h3>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="markAllNotificationsRead()" class="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors" id="markReadBtn" title="Mark all as read">
+                                        Mark all as read
+                                    </button>
+                                    <button onclick="toggleCompactMode()" class="compact-toggle-btn text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors" title="Toggle compact view">
+                                        <span class="compact-label">Compact</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="max-h-96 overflow-y-auto">
-                                <div class="p-3">
+                            <div class="max-h-72 overflow-y-auto" id="popupNotifScroll">
+                                <div class="p-2.5 notif-list" id="popupNotifList">
                                     @forelse(($notifications ?? collect()) as $notif)
                                         @php
-                                            $mobileNotifStyles = [
+                                            $notifStyles = [
                                                 'info' => 'notification-blue',
                                                 'warning' => 'notification-yellow',
-                                                'success' => 'notification-blue',
-                                                'danger' => 'notification-yellow',
+                                                'success' => 'notification-green',
+                                                'danger' => 'notification-red',
                                             ];
-                                            $mobileIconColors = [
+                                            $iconColors = [
                                                 'info' => 'text-blue-500',
                                                 'warning' => 'text-yellow-600',
                                                 'success' => 'text-green-500',
                                                 'danger' => 'text-red-500',
                                             ];
+                                            $isUnread = !in_array($notif->id, $readNotifIds ?? []);
                                         @endphp
-                                        <div class="notification-item {{ $mobileNotifStyles[$notif->type] ?? 'notification-gray' }} mb-2">
+                                        <div class="notification-item notif-card {{ $notifStyles[$notif->type] ?? 'notification-gray' }} mb-1.5{{ $isUnread ? ' notif-unread' : '' }}" data-notif-id="{{ $notif->id }}">
                                             <div class="flex items-start space-x-2">
-                                                <svg class="w-4 h-4 {{ $mobileIconColors[$notif->type] ?? 'text-gray-600' }} mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                    @if($notif->type === 'warning' || $notif->type === 'danger')
+                                                <svg class="w-3.5 h-3.5 {{ $iconColors[$notif->type] ?? 'text-gray-600' }} mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    @if($notif->type === 'success')
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                                    @elseif($notif->type === 'warning' || $notif->type === 'danger')
                                                         <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                                                     @else
                                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                                                     @endif
                                                 </svg>
                                                 <div class="flex-1 min-w-0">
-                                                    <p class="text-xs font-semibold text-gray-900">{{ $notif->title }}</p>
-                                                    <p class="text-xs text-gray-600">{{ Str::limit($notif->message, 80) }}</p>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <p class="notif-title text-xs font-semibold text-gray-900">{{ $notif->title }}</p>
+                                                        @if($isUnread)
+                                                            <span class="notif-unread-dot w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                                                        @endif
+                                                    </div>
+                                                    <p class="notif-message text-[11px] text-gray-600 mt-0.5">{{ Str::limit($notif->message, 80) }}</p>
+                                                    <p class="notif-time text-[9px] text-gray-400 mt-0.5">{{ ($notif->published_at ?? $notif->created_at)->diffForHumans() }}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     @empty
                                         <div class="notification-item notification-gray">
                                             <div class="flex items-start space-x-2">
-                                                <svg class="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                <svg class="w-3.5 h-3.5 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                                                 </svg>
                                                 <div class="flex-1 min-w-0">
                                                     <p class="text-xs font-semibold text-gray-900">No notifications</p>
-                                                    <p class="text-xs text-gray-600">You're all caught up!</p>
+                                                    <p class="text-[11px] text-gray-600">You're all caught up!</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -159,8 +179,33 @@
         </div>
     </nav>
 
+    <!-- Expanded Full-List View (hidden by default) -->
+    <div id="expandedView" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        <div class="mb-6">
+            <button onclick="collapseExpandedView()" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors group">
+                <svg class="w-5 h-5 transform group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Back to Dashboard
+            </button>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div id="expandedViewIcon" class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center"></div>
+                        <div>
+                            <h2 id="expandedViewTitle" class="text-lg font-bold text-gray-900"></h2>
+                            <p id="expandedViewSubtitle" class="text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+                    <div id="expandedViewFilters" class="flex flex-wrap gap-2 hidden"></div>
+                </div>
+            </div>
+            <div id="expandedListContent" class="p-4 space-y-3 max-h-[70vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+    <div id="dashboardMainContent" class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         @php
             // Variables passed from controller:
             // $strategicObjectivesText, $strategicObjectivesPercent
@@ -313,7 +358,7 @@
                                 <div class="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center">
                                     <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                                 </div>
-                                <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Expected Target</h3>
+                                <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Performance Objectives</h3>
                             </div>
                             <div id="expectedTargetList" class="space-y-4">
                                 @php
@@ -343,14 +388,35 @@
                                                     }
                                                 @endphp
                                                 <div onclick="openSoModal({{ $globalIndex !== false ? $globalIndex : 0 }})"
-                                                     class="bg-gray-50 hover:bg-indigo-50 transition-colors rounded-xl p-3 border border-gray-100 hover:border-indigo-200 flex items-start space-x-3 group cursor-pointer">
-                                                    <div class="mt-0.5">
-                                                        <span class="inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold rounded-lg {{ $so['average'] >= 4.5 ? 'bg-emerald-50 text-emerald-700' : ($so['average'] >= 3.0 ? 'bg-blue-50 text-blue-700' : ($so['average'] > 0 ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700')) }} w-12 text-center">{{ number_format($so['average'], 2) }}</span>
+                                                     class="bg-white hover:bg-indigo-50/50 transition-all duration-200 rounded-xl p-3 sm:p-4 border border-gray-100 hover:border-indigo-200 hover:shadow-sm flex items-center justify-between group cursor-pointer transform hover:-translate-y-0.5">
+                                                    
+                                                    <div class="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0 pr-4">
+                                                        <div class="flex flex-col items-center justify-center flex-shrink-0 w-12 h-12 rounded-xl {{ $so['average'] >= 4.5 ? 'bg-emerald-50 text-emerald-700' : ($so['average'] >= 3.0 ? 'bg-blue-50 text-blue-700' : ($so['average'] > 0 ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700')) }} border border-transparent group-hover:border-current/10 transition-colors">
+                                                            <span class="text-sm sm:text-base font-black leading-none">{{ number_format($so['average'], 2) }}</span>
+                                                            <span class="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-70 mt-1">Target</span>
+                                                        </div>
+                                                        
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-[13px] sm:text-sm text-gray-800 font-semibold leading-snug group-hover:text-indigo-900 transition-colors line-clamp-2" title="{{ $so['name'] }}">{{ $so['name'] }}</p>
+                                                        </div>
                                                     </div>
-                                                    <div class="flex-1">
-                                                        <p class="text-xs sm:text-sm text-gray-700 font-medium leading-relaxed group-hover:text-indigo-800 transition-colors">{{ $so['name'] }}</p>
+                                                    
+                                                    <div class="flex items-center space-x-3 flex-shrink-0">
+                                                        @if(($so['actual_rating'] ?? 0) > 0)
+                                                            <div class="flex flex-col items-end justify-center">
+                                                                <span class="text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Calibrated</span>
+                                                                <span class="text-sm font-black {{ $so['actual_rating'] >= 4.5 ? 'text-emerald-500' : ($so['actual_rating'] >= 3.0 ? 'text-blue-500' : 'text-amber-500') }}">{{ number_format($so['actual_rating'], 2) }}</span>
+                                                            </div>
+                                                        @else
+                                                            <div class="flex flex-col items-end justify-center opacity-40">
+                                                                <span class="text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Calibrated</span>
+                                                                <span class="text-sm font-bold text-gray-400">--</span>
+                                                            </div>
+                                                        @endif
+                                                        <div class="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                                            <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                                        </div>
                                                     </div>
-                                                    <svg class="w-4 h-4 text-gray-300 group-hover:text-indigo-400 flex-shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                                 </div>
                                             @endforeach
                                         </div>
@@ -401,56 +467,82 @@
 
                 <!-- Notifications -->
                 <div class="metric-card hidden lg:block">
-                    <div class="flex items-center space-x-3 mb-4 sm:mb-5">
-                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    <div class="flex items-center justify-between mb-3 sm:mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            </div>
+                            <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Notifications</h3>
+                            @if(($unreadCount ?? 0) > 0)
+                                <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700" id="sidebarNotifBadge">{{ $unreadCount }}</span>
+                            @else
+                                <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 hidden" id="sidebarNotifBadge">0</span>
+                            @endif
                         </div>
-                        <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Notifications</h3>
+                        <div class="flex items-center gap-2">
+                            <button onclick="markAllNotificationsRead()" class="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors" title="Mark all as read">
+                                Mark all as read
+                            </button>
+                            <button onclick="toggleCompactMode()" class="compact-toggle-btn text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors" title="Toggle compact view">
+                                <span class="compact-label">Compact</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="space-y-2 sm:space-y-3">
-                        @forelse(($notifications ?? collect()) as $notif)
-                            @php
-                                $sidebarNotifStyles = [
-                                    'info' => 'notification-blue',
-                                    'warning' => 'notification-yellow',
-                                    'success' => 'notification-blue',
-                                    'danger' => 'notification-yellow',
-                                ];
-                                $sidebarIconColors = [
-                                    'info' => 'text-blue-500',
-                                    'warning' => 'text-yellow-600',
-                                    'success' => 'text-green-500',
-                                    'danger' => 'text-red-500',
-                                ];
-                            @endphp
-                            <div class="notification-item {{ $sidebarNotifStyles[$notif->type] ?? 'notification-gray' }}">
-                                <div class="flex items-start space-x-2">
-                                    <svg class="w-4 h-4 sm:w-5 sm:h-5 {{ $sidebarIconColors[$notif->type] ?? 'text-gray-600' }} mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        @if($notif->type === 'warning' || $notif->type === 'danger')
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                        @else
+                    <div class="max-h-64 overflow-y-auto rounded-lg" id="sidebarNotifScroll">
+                        <div class="space-y-1.5 notif-list" id="sidebarNotifList">
+                            @forelse(($notifications ?? collect()) as $notif)
+                                @php
+                                    $sidebarNotifStyles = [
+                                        'info' => 'notification-blue',
+                                        'warning' => 'notification-yellow',
+                                        'success' => 'notification-green',
+                                        'danger' => 'notification-red',
+                                    ];
+                                    $sidebarIconColors = [
+                                        'info' => 'text-blue-500',
+                                        'warning' => 'text-yellow-600',
+                                        'success' => 'text-green-500',
+                                        'danger' => 'text-red-500',
+                                    ];
+                                    $isUnread = !in_array($notif->id, $readNotifIds ?? []);
+                                @endphp
+                                <div class="notification-item notif-card {{ $sidebarNotifStyles[$notif->type] ?? 'notification-gray' }}{{ $isUnread ? ' notif-unread' : '' }}" data-notif-id="{{ $notif->id }}">
+                                    <div class="flex items-start space-x-2">
+                                        <svg class="w-4 h-4 {{ $sidebarIconColors[$notif->type] ?? 'text-gray-600' }} mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            @if($notif->type === 'success')
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            @elseif($notif->type === 'warning' || $notif->type === 'danger')
+                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                            @else
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                            @endif
+                                        </svg>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-1.5">
+                                                <p class="notif-title text-xs sm:text-sm font-semibold text-gray-900">{{ $notif->title }}</p>
+                                                @if($isUnread)
+                                                    <span class="notif-unread-dot w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                                                @endif
+                                            </div>
+                                            <p class="notif-message text-xs text-gray-600 mt-0.5">{{ Str::limit($notif->message, 80) }}</p>
+                                            <p class="notif-time text-[9px] text-gray-400 mt-0.5">{{ ($notif->published_at ?? $notif->created_at)->diffForHumans() }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="notification-item notification-gray">
+                                    <div class="flex items-start space-x-2">
+                                        <svg class="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                        @endif
-                                    </svg>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs sm:text-sm font-semibold text-gray-900">{{ $notif->title }}</p>
-                                        <p class="text-xs text-gray-600">{{ Str::limit($notif->message, 80) }}</p>
+                                        </svg>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-xs sm:text-sm font-semibold text-gray-900">No notifications</p>
+                                            <p class="text-xs text-gray-600">You're all caught up!</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        @empty
-                            <div class="notification-item notification-gray">
-                                <div class="flex items-start space-x-2">
-                                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs sm:text-sm font-semibold text-gray-900">No notifications</p>
-                                        <p class="text-xs text-gray-600">You're all caught up!</p>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforelse
+                            @endforelse
+                        </div>
                     </div>
                 </div>
 
@@ -462,16 +554,83 @@
                         </div>
                         <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Returned IPCR</h3>
                     </div>
-                    <div class="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-100 hover:border-gray-300 transition-colors">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-bold text-gray-900">IPCR</p>
-                                <p class="text-xs text-gray-500 font-medium">2025 - 2026 Semester 1</p>
+                    @if(isset($returnedCalibration) && $returnedCalibration)
+                        <div class="bg-green-50 rounded-xl p-3 sm:p-4 border border-green-200 hover:border-green-300 transition-colors">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold text-gray-900">{{ $activeSubmission->title ?? 'IPCR' }}</p>
+                                    <p class="text-xs text-gray-500 font-medium">{{ ($activeSubmission->school_year ?? '') }} &bull; {{ ($activeSubmission->semester ?? '') }}</p>
+                                </div>
+                                <button onclick="openReturnedCalibrationModal()" class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors shadow-sm">View</button>
                             </div>
-                            <button class="bg-white border border-gray-200 text-gray-700 hover:text-blue-700 hover:border-blue-200 hover:bg-blue-50 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors shadow-sm">View</button>
+                            <div class="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded">Calibrated</span>
+                                    <span class="text-xs text-gray-500">by {{ $returnedCalibration->dean->name ?? 'Dean' }}</span>
+                                </div>
+                                <span class="text-sm font-bold text-green-700">{{ number_format($returnedCalibration->overall_score, 2) }}</span>
+                            </div>
+                        </div>
+                    @else
+                        <div class="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-100">
+                            <p class="text-xs text-gray-400 text-center font-medium">No calibrated IPCR returned yet</p>
+                        </div>
+                    @endif
+                </div>
+
+                @if(auth()->user()->hasRole('dean'))
+                <!-- Dean: Faculty IPCR Submissions Review -->
+                <div class="metric-card">
+                    <div class="flex items-center justify-between mb-4 sm:mb-5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Faculty IPCRs</h3>
+                                <p class="text-xs text-gray-500">{{ $departmentCode ?: $departmentName }}</p>
+                            </div>
+                        </div>
+                        <button id="expandFacultyBtn" onclick="expandSection('faculty')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap">View All <svg class="w-3 h-3 inline ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                    </div>
+                    <div id="deanFacultySubmissionsList">
+                        <div class="flex justify-center py-4">
+                            <svg class="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
                         </div>
                     </div>
                 </div>
+
+                <!-- Dean: Cross-Calibration with Other Deans -->
+                <div class="metric-card">
+                    <div class="flex items-center justify-between mb-4 sm:mb-5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">Dean Calibration</h3>
+                                <p class="text-xs text-gray-500">Other deans' IPCRs</p>
+                            </div>
+                        </div>
+                        <button id="expandCalibrationBtn" onclick="expandSection('calibration')" class="text-xs font-semibold text-amber-600 hover:text-amber-800 transition-colors whitespace-nowrap">View All <svg class="w-3 h-3 inline ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                    </div>
+                    <div id="deanCalibrationList">
+                        <div class="flex justify-center py-4">
+                            <svg class="animate-spin h-5 w-5 text-amber-500" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -544,6 +703,1151 @@
         </button>
         <img id="imageViewerContent" class="max-w-[90vw] max-h-[90vh] object-contain transform scale-95 transition-transform duration-300 rounded-lg shadow-2xl" src="" alt="Expanded View" onclick="event.stopPropagation()">
     </div>
+
+@if(isset($returnedCalibration) && $returnedCalibration)
+<!-- Returned Calibration Preview Modal -->
+<div id="returnedCalibrationModal" class="fixed inset-0 z-[1000] hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeReturnedCalibrationModal()"></div>
+    <div class="relative mx-auto mt-2 sm:mt-8 mb-2 sm:mb-8 w-full max-w-6xl bg-white rounded-2xl shadow-lg max-h-[98vh] sm:max-h-[90vh] overflow-y-auto px-2 sm:px-0">
+        <!-- Header -->
+        <div class="bg-green-50 px-3 sm:px-6 py-3 sm:py-4 border-b border-green-200 sticky top-0 z-10">
+            <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <h2 class="text-sm sm:text-lg font-bold text-gray-900">{{ $activeSubmission->title ?? 'IPCR' }}</h2>
+                        <span class="font-semibold px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">Calibrated</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-600">Year: <span class="font-semibold">{{ $activeSubmission->school_year ?? '' }}</span></p>
+                    <p class="text-xs sm:text-sm text-gray-600">Period: <span class="font-semibold">{{ $activeSubmission->semester ?? '' }}</span></p>
+                </div>
+                <button onclick="closeReturnedCalibrationModal()" class="text-gray-500 hover:text-gray-700 ml-2 flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+                <div class="flex flex-col sm:block">
+                    <span class="text-gray-600">Ratee:</span>
+                    <span class="font-semibold text-gray-900">{{ auth()->user()->name }}</span>
+                </div>
+                <div class="flex flex-col sm:block">
+                    <span class="text-gray-600">Calibrated By:</span>
+                    <span class="font-semibold text-gray-900">{{ $returnedCalibration->dean->name ?? 'Dean' }}</span>
+                </div>
+                <div class="flex flex-col sm:block">
+                    <span class="text-gray-600">Calibration Score:</span>
+                    <span class="font-bold text-green-700">{{ number_format($returnedCalibration->overall_score, 2) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Content -->
+        <div class="overflow-x-auto px-2 sm:px-6 py-3 sm:py-4">
+            <table class="w-full border-collapse min-w-[800px]">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 15%;">MFO</th>
+                        <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 25%;">Success Indicators<br><span class="font-semibold text-gray-500">(Target + Measures)</span></th>
+                        <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 20%;">Actual Accomplishments</th>
+                        <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" colspan="4">Rating</th>
+                        <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 15%;">Remarks</th>
+                    </tr>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">Q</th>
+                        <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">E</th>
+                        <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">T</th>
+                        <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">A</th>
+                    </tr>
+                </thead>
+                <tbody id="returnedCalibrationTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-2 sm:px-6 py-3 sm:py-4 bg-green-50 border-t border-green-200 sticky bottom-0 z-10">
+            <div class="flex items-center justify-between">
+                <div class="text-xs sm:text-sm">
+                    <span class="text-gray-600">Overall Calibrated Score:</span>
+                    <span class="ml-1 font-bold text-green-700 text-sm sm:text-base">{{ number_format($returnedCalibration->overall_score, 2) }}</span>
+                </div>
+                <button onclick="closeReturnedCalibrationModal()" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+@if(auth()->user()->hasRole('dean'))
+<!-- Dean IPCR Preview Modal -->
+<div id="deanPreviewModal" class="fixed inset-0 z-[1000] hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeDeanPreviewModal()"></div>
+    <div class="relative mx-auto mt-2 sm:mt-8 mb-2 sm:mb-8 w-full max-w-6xl bg-white rounded-2xl shadow-lg max-h-[98vh] sm:max-h-[90vh] overflow-y-auto px-2 sm:px-0">
+        <!-- Document Header -->
+        <div class="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-300 sticky top-0 bg-white z-10">
+            <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <h2 id="deanPreviewTitle" class="text-sm sm:text-lg font-bold text-gray-900"></h2>
+                        <span id="deanPreviewStatus" class="font-semibold px-2 py-0.5 rounded text-xs"></span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-600">Year: <span id="deanPreviewSchoolYear" class="font-semibold"></span></p>
+                    <p class="text-xs sm:text-sm text-gray-600">Period: <span id="deanPreviewSemester" class="font-semibold"></span></p>
+                </div>
+                <button onclick="closeDeanPreviewModal()" class="text-gray-500 hover:text-gray-700 ml-2 flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+                <div class="flex flex-col sm:block">
+                    <span class="text-gray-600">Ratee:</span>
+                    <span id="deanPreviewRatee" class="font-semibold text-gray-900 truncate"></span>
+                </div>
+                <div class="flex flex-col sm:block">
+                    <span class="text-gray-600">Approved By:</span>
+                    <span id="deanPreviewApprovedBy" class="font-semibold text-gray-900 truncate"></span>
+                </div>
+                <div class="flex flex-col sm:block">
+                    <span class="text-gray-600">Noted By:</span>
+                    <span id="deanPreviewNotedBy" class="font-semibold text-gray-900 truncate"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="deanPreviewLoading" class="flex items-center justify-center py-20">
+            <svg class="animate-spin h-8 w-8 text-indigo-500" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </div>
+
+        <!-- Table Content -->
+        <div id="deanPreviewContent" class="hidden">
+            <div class="overflow-x-auto px-2 sm:px-6 py-3 sm:py-4">
+                <table class="w-full border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 15%;">MFO</th>
+                            <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 25%;">Success Indicators<br><span class="font-semibold text-gray-500">(Target + Measures)</span></th>
+                            <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 20%;">Actual Accomplishments</th>
+                            <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" colspan="4">Rating</th>
+                            <th class="border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700" rowspan="2" style="width: 15%;">Remarks</th>
+                        </tr>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">Q</th>
+                            <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">E</th>
+                            <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">T</th>
+                            <th class="border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600" style="width: 8%;">A</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deanPreviewTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-2 sm:px-6 py-3 sm:py-4 bg-gray-50 border-t border-gray-300 sticky bottom-0 z-10">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-3">
+                    <div id="deanPreviewOverallAvg" class="hidden text-xs sm:text-sm">
+                        <span class="text-gray-600">Overall Average Rating:</span>
+                        <span id="deanPreviewAvgValue" class="ml-1 font-bold text-indigo-700 text-sm sm:text-base"></span>
+                    </div>
+                    <span id="deanCalibrationStatus" class="hidden text-xs font-semibold px-2 py-1 rounded"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="deanSaveDraftBtn" onclick="saveDeanCalibration('draft')" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-300 hover:bg-amber-100 transition">
+                        <i class="fas fa-save mr-1"></i>Save Draft
+                    </button>
+                    <button id="deanCalibrateBtn" onclick="saveDeanCalibration('calibrated')" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition">
+                        <i class="fas fa-check-circle mr-1"></i>Calibrate
+                    </button>
+                    <button onclick="closeDeanPreviewModal()" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dean SO Documents Viewer Modal (read-only) -->
+<div id="deanSoDocsModal" class="fixed inset-0 z-[1100] hidden">
+    <div class="absolute inset-0 bg-black/60" onclick="closeDeanSoDocsModal()"></div>
+    <div class="relative mx-auto mt-10 sm:mt-20 w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden z-10">
+        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+                <h3 id="deanSoDocsTitle" class="text-sm font-bold text-gray-900 truncate"></h3>
+                <p id="deanSoDocsDesc" class="text-xs text-gray-500 truncate mt-0.5"></p>
+            </div>
+            <button onclick="closeDeanSoDocsModal()" class="text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div id="deanSoDocsList" class="px-5 py-4 max-h-80 overflow-y-auto">
+            <div class="flex items-center justify-center py-8">
+                <svg class="animate-spin h-5 w-5 text-gray-300 mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span class="text-sm text-gray-400">Loading documents...</span>
+            </div>
+        </div>
+        <div class="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
+            <button onclick="closeDeanSoDocsModal()" class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Calibration Confirm Modal -->
+<div id="calibrationConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-[2000] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full animate-scale-in z-10">
+        <div class="bg-yellow-50 border-b border-yellow-200 px-6 py-4 flex items-center gap-3">
+            <div class="bg-yellow-100 rounded-full w-12 h-12 flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Finalize Calibration?</h2>
+                <p class="text-sm text-gray-600">This action cannot be undone</p>
+            </div>
+        </div>
+
+        <div class="px-6 py-4">
+            <p class="text-gray-700 mb-2 text-sm">Are you sure you want to finalize this calibration?</p>
+            <p class="text-sm text-gray-600">The scores will be reflected on the dashboard.</p>
+        </div>
+
+        <div class="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3 justify-end">
+            <button type="button" onclick="closeCalibrationConfirmModal()" class="px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition text-sm">
+                Cancel
+            </button>
+            <button type="button" id="confirmCalibrationBtn" class="px-4 py-2 rounded-lg font-semibold text-white bg-yellow-600 hover:bg-yellow-700 transition flex items-center gap-2 text-sm">
+                <i class="fas fa-check"></i> <span>Confirm</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+var allFacultySubmissions = [];
+var allCalibrationSubmissions = [];
+var currentDeanPreviewSubmissionId = null;
+var currentDeanPreviewType = null;
+
+(function() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    const myIpcrsUrl = '{{ route('faculty.my-ipcrs') }}';
+    const facultySubmissionsUrl = '{{ url('/dean/review/faculty-submissions') }}';
+    const deanSubmissionsUrl = '{{ url('/dean/review/dean-submissions') }}';
+    const PREVIEW_LIMIT = 3;
+
+    function renderFacultyCard(sub) {
+        var calBadge = '';
+        var borderClass = 'border-indigo-200';
+        var bgClass = 'bg-indigo-50';
+        if (sub.calibration_status === 'calibrated') {
+            calBadge = '<div class="flex items-center gap-1.5 mt-1"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded"><i class="fas fa-check-circle mr-0.5"></i>Calibrated</span><span class="text-xs font-bold text-green-700">' + (parseFloat(sub.calibration_score) || 0).toFixed(2) + '</span></div>';
+            borderClass = 'border-green-200';
+            bgClass = 'bg-green-50';
+        } else if (sub.calibration_status === 'draft') {
+            calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded"><i class="fas fa-pencil-alt mr-0.5"></i>Draft</span></div>';
+        } else {
+            calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded">Pending</span></div>';
+        }
+        return '<div class="p-3 ' + bgClass + ' rounded-xl border ' + borderClass + '">' +
+            '<div class="flex justify-between items-start gap-2">' +
+                '<div class="flex-1 min-w-0">' +
+                    '<p class="text-sm font-semibold text-gray-900 truncate">' + (sub.user_name || 'Unknown') + '</p>' +
+                    '<p class="text-xs text-gray-600 truncate">' + (sub.title || 'Untitled') + '</p>' +
+                    '<p class="text-xs text-gray-500">' + (sub.school_year || '') + ' &bull; ' + (sub.semester || '') + '</p>' +
+                    calBadge +
+                '</div>' +
+                '<div class="flex flex-col gap-1 flex-shrink-0">' +
+                    '<button onclick="viewFacultySubmission(' + sub.id + ')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-1.5 px-3 rounded text-center">View</button>' +
+                    '<span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded text-center">' + (sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'N/A') + '</span>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function renderCalibrationCard(sub) {
+        var calBadge = '';
+        var borderClass = 'border-amber-200';
+        var bgClass = 'bg-amber-50';
+        if (sub.calibration_status === 'calibrated') {
+            calBadge = '<div class="flex items-center gap-1.5 mt-1"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded"><i class="fas fa-check-circle mr-0.5"></i>Calibrated</span><span class="text-xs font-bold text-green-700">' + (parseFloat(sub.calibration_score) || 0).toFixed(2) + '</span></div>';
+            borderClass = 'border-green-200';
+            bgClass = 'bg-green-50';
+        } else if (sub.calibration_status === 'draft') {
+            calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded"><i class="fas fa-pencil-alt mr-0.5"></i>Draft</span></div>';
+        } else {
+            calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded">Pending</span></div>';
+        }
+        return '<div class="p-3 ' + bgClass + ' rounded-xl border ' + borderClass + '">' +
+            '<div class="flex justify-between items-start gap-2">' +
+                '<div class="flex-1 min-w-0">' +
+                    '<p class="text-sm font-semibold text-gray-900 truncate">' + (sub.user_name || 'Unknown') + '</p>' +
+                    '<p class="text-xs text-amber-700 font-medium">' + (sub.department || 'N/A') + '</p>' +
+                    '<p class="text-xs text-gray-600 truncate">' + (sub.title || 'Untitled') + '</p>' +
+                    '<p class="text-xs text-gray-500">' + (sub.school_year || '') + ' &bull; ' + (sub.semester || '') + '</p>' +
+                    calBadge +
+                '</div>' +
+                '<div class="flex flex-col gap-1 flex-shrink-0">' +
+                    '<button onclick="viewDeanSubmission(' + sub.id + ')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-1.5 px-3 rounded text-center">View</button>' +
+                    '<span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded text-center">' + (sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'N/A') + '</span>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    async function loadDeanFacultySubmissions() {
+        const container = document.getElementById('deanFacultySubmissionsList');
+        if (!container) return;
+        try {
+            const response = await fetch(facultySubmissionsUrl, {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            });
+            const data = await response.json();
+            if (!data.success || data.submissions.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No faculty submissions yet</p>';
+                return;
+            }
+            allFacultySubmissions = data.submissions;
+            const preview = data.submissions.slice(0, PREVIEW_LIMIT);
+            container.innerHTML = '<div class="space-y-3">' + preview.map(renderFacultyCard).join('') + '</div>';
+            if (data.submissions.length > PREVIEW_LIMIT) {
+                document.getElementById('expandFacultyBtn').classList.remove('hidden');
+            }
+        } catch (error) {
+            container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Failed to load submissions</p>';
+        }
+    }
+
+    async function loadDeanCalibrationSubmissions() {
+        const container = document.getElementById('deanCalibrationList');
+        if (!container) return;
+        try {
+            const response = await fetch(deanSubmissionsUrl, {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            });
+            const data = await response.json();
+            if (!data.success || data.submissions.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No other deans\' submissions yet</p>';
+                return;
+            }
+            allCalibrationSubmissions = data.submissions;
+            const preview = data.submissions.slice(0, PREVIEW_LIMIT);
+            container.innerHTML = '<div class="space-y-3">' + preview.map(renderCalibrationCard).join('') + '</div>';
+            if (data.submissions.length > PREVIEW_LIMIT) {
+                document.getElementById('expandCalibrationBtn').classList.remove('hidden');
+            }
+        } catch (error) {
+            container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Failed to load submissions</p>';
+        }
+    }
+
+    // Expose render functions for expand
+    window._renderFacultyCard = renderFacultyCard;
+    window._renderCalibrationCard = renderCalibrationCard;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDeanFacultySubmissions();
+        loadDeanCalibrationSubmissions();
+    });
+})();
+
+var currentExpandedType = null;
+var currentExpandedFilter = 'all';
+
+function expandSection(type) {
+    const mainContent = document.getElementById('dashboardMainContent');
+    const expandedView = document.getElementById('expandedView');
+    const titleEl = document.getElementById('expandedViewTitle');
+    const subtitleEl = document.getElementById('expandedViewSubtitle');
+    const iconEl = document.getElementById('expandedViewIcon');
+    const filtersEl = document.getElementById('expandedViewFilters');
+
+    currentExpandedType = type;
+    currentExpandedFilter = 'all';
+    mainContent.classList.add('hidden');
+    expandedView.classList.remove('hidden');
+
+    if (type === 'faculty') {
+        titleEl.textContent = 'Faculty IPCRs';
+        subtitleEl.textContent = allFacultySubmissions.length + ' submissions';
+        iconEl.className = 'w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center';
+        iconEl.innerHTML = '<svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>';
+
+        // Build filter buttons
+        var pendingCount = allFacultySubmissions.filter(function(s) { return s.calibration_status !== 'calibrated'; }).length;
+        var calibratedCount = allFacultySubmissions.filter(function(s) { return s.calibration_status === 'calibrated'; }).length;
+        filtersEl.innerHTML =
+            '<button onclick="filterExpanded(\'all\')" id="exp-filter-all" class="exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-indigo-600 text-white border-indigo-600">All (' + allFacultySubmissions.length + ')</button>' +
+            '<button onclick="filterExpanded(\'pending\')" id="exp-filter-pending" class="exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-white text-gray-700 border-gray-300 hover:bg-gray-50">Pending (' + pendingCount + ')</button>' +
+            '<button onclick="filterExpanded(\'calibrated\')" id="exp-filter-calibrated" class="exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-white text-gray-700 border-gray-300 hover:bg-gray-50">Calibrated (' + calibratedCount + ')</button>';
+        filtersEl.classList.remove('hidden');
+
+        renderExpandedList('all');
+    } else {
+        titleEl.textContent = 'Dean Calibration';
+        subtitleEl.textContent = allCalibrationSubmissions.length + ' submissions';
+        iconEl.className = 'w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center';
+        iconEl.innerHTML = '<svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>';
+
+        var dPendingCount = allCalibrationSubmissions.filter(function(s) { return s.calibration_status !== 'calibrated'; }).length;
+        var dCalibratedCount = allCalibrationSubmissions.filter(function(s) { return s.calibration_status === 'calibrated'; }).length;
+        filtersEl.innerHTML =
+            '<button onclick="filterExpanded(\'all\')" id="exp-filter-all" class="exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-amber-600 text-white border-amber-600">All (' + allCalibrationSubmissions.length + ')</button>' +
+            '<button onclick="filterExpanded(\'pending\')" id="exp-filter-pending" class="exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-white text-gray-700 border-gray-300 hover:bg-gray-50">Pending (' + dPendingCount + ')</button>' +
+            '<button onclick="filterExpanded(\'calibrated\')" id="exp-filter-calibrated" class="exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-white text-gray-700 border-gray-300 hover:bg-gray-50">Calibrated (' + dCalibratedCount + ')</button>';
+        filtersEl.classList.remove('hidden');
+
+        renderExpandedList('all');
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+window.filterExpanded = function(filter) {
+    currentExpandedFilter = filter;
+    var activeColor = currentExpandedType === 'faculty' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-amber-600 text-white border-amber-600';
+    document.querySelectorAll('.exp-filter-btn').forEach(function(btn) {
+        btn.className = 'exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors bg-white text-gray-700 border-gray-300 hover:bg-gray-50';
+    });
+    var activeBtn = document.getElementById('exp-filter-' + filter);
+    if (activeBtn) activeBtn.className = 'exp-filter-btn px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ' + activeColor;
+    renderExpandedList(filter);
+};
+
+function renderExpandedList(filter) {
+    var listEl = document.getElementById('expandedListContent');
+    var subtitleEl = document.getElementById('expandedViewSubtitle');
+    var items, renderer;
+
+    if (currentExpandedType === 'faculty') {
+        items = allFacultySubmissions;
+        renderer = window._renderFacultyCard;
+    } else {
+        items = allCalibrationSubmissions;
+        renderer = window._renderCalibrationCard;
+    }
+
+    var filtered = items;
+    if (filter === 'pending') {
+        filtered = items.filter(function(s) { return s.calibration_status !== 'calibrated'; });
+    } else if (filter === 'calibrated') {
+        filtered = items.filter(function(s) { return s.calibration_status === 'calibrated'; });
+    }
+
+    subtitleEl.textContent = filtered.length + ' of ' + items.length + ' submissions' + (filter !== 'all' ? ' (' + filter + ')' : '');
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400">No ' + filter + ' submissions found</p></div>';
+    } else {
+        listEl.innerHTML = filtered.map(renderer).join('');
+    }
+}
+
+function collapseExpandedView() {
+    document.getElementById('expandedView').classList.add('hidden');
+    document.getElementById('dashboardMainContent').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// View a faculty IPCR submission in preview modal
+window.viewFacultySubmission = async function(submissionId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    const modal = document.getElementById('deanPreviewModal');
+    const tableBody = document.getElementById('deanPreviewTableBody');
+    const titleEl = document.getElementById('deanPreviewTitle');
+    const yearEl = document.getElementById('deanPreviewSchoolYear');
+    const semEl = document.getElementById('deanPreviewSemester');
+    const rateeEl = document.getElementById('deanPreviewRatee');
+    const approvedByEl = document.getElementById('deanPreviewApprovedBy');
+    const notedByEl = document.getElementById('deanPreviewNotedBy');
+    const statusEl = document.getElementById('deanPreviewStatus');
+    const loading = document.getElementById('deanPreviewLoading');
+    const content = document.getElementById('deanPreviewContent');
+
+    currentDeanPreviewSubmissionId = submissionId;
+    currentDeanPreviewType = 'faculty';
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    document.getElementById('deanPreviewOverallAvg').classList.add('hidden');
+    resetCalibrationUI();
+
+    try {
+        const response = await fetch('/dean/review/faculty-submissions/' + submissionId, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+        });
+        const data = await response.json();
+        if (data.success && data.submission) {
+            const sub = data.submission;
+            titleEl.textContent = sub.title || 'IPCR';
+            if (yearEl) yearEl.textContent = sub.school_year || '';
+            if (semEl) semEl.textContent = sub.semester || '';
+            if (rateeEl) rateeEl.textContent = sub.user_name || 'Unknown';
+            if (approvedByEl) approvedByEl.textContent = sub.approved_by || '—';
+            if (notedByEl) notedByEl.textContent = sub.noted_by || '—';
+            if (statusEl) {
+                const st = sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : '';
+                statusEl.textContent = st;
+                statusEl.className = 'font-semibold px-2 py-0.5 rounded text-xs ' +
+                    (sub.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                     sub.status === 'approved' ? 'bg-green-100 text-green-700' :
+                     sub.status === 'returned' ? 'bg-red-100 text-red-700' :
+                     'bg-gray-100 text-gray-700');
+            }
+            if (tableBody && sub.table_body_html) {
+                tableBody.innerHTML = sub.table_body_html;
+                makeTableCalibrationEditable(tableBody);
+                if (sub.calibration && sub.calibration.calibration_data) {
+                    applyCalibrationData(tableBody, sub.calibration.calibration_data);
+                }
+                labelQetaInputsDean(tableBody);
+                computeOverallAverage(tableBody);
+                attachCalibrationInputListeners(tableBody);
+                attachSoDocClickHandlers(tableBody, sub.user_id, submissionId, 'ipcr_submission');
+                showCalibrationButtons(sub.calibration);
+            }
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+        } else {
+            modal.classList.add('hidden');
+            alert('Submission not found.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        modal.classList.add('hidden');
+        alert('Failed to load submission.');
+    }
+};
+
+// View a dean IPCR submission in preview modal
+window.viewDeanSubmission = async function(submissionId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    const modal = document.getElementById('deanPreviewModal');
+    const tableBody = document.getElementById('deanPreviewTableBody');
+    const titleEl = document.getElementById('deanPreviewTitle');
+    const yearEl = document.getElementById('deanPreviewSchoolYear');
+    const semEl = document.getElementById('deanPreviewSemester');
+    const rateeEl = document.getElementById('deanPreviewRatee');
+    const approvedByEl = document.getElementById('deanPreviewApprovedBy');
+    const notedByEl = document.getElementById('deanPreviewNotedBy');
+    const statusEl = document.getElementById('deanPreviewStatus');
+    const loading = document.getElementById('deanPreviewLoading');
+    const content = document.getElementById('deanPreviewContent');
+
+    currentDeanPreviewSubmissionId = submissionId;
+    currentDeanPreviewType = 'dean';
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    document.getElementById('deanPreviewOverallAvg').classList.add('hidden');
+    resetCalibrationUI();
+
+    try {
+        const response = await fetch('/dean/review/dean-submissions/' + submissionId, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+        });
+        const data = await response.json();
+        if (data.success && data.submission) {
+            const sub = data.submission;
+            const deptLabel = sub.department ? ' (' + sub.department + ')' : '';
+            titleEl.textContent = (sub.title || 'IPCR') + deptLabel;
+            if (yearEl) yearEl.textContent = sub.school_year || '';
+            if (semEl) semEl.textContent = sub.semester || '';
+            if (rateeEl) rateeEl.textContent = (sub.user_name || 'Unknown') + deptLabel;
+            if (approvedByEl) approvedByEl.textContent = sub.approved_by || '—';
+            if (notedByEl) notedByEl.textContent = sub.noted_by || '—';
+            if (statusEl) {
+                const st = sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : '';
+                statusEl.textContent = st;
+                statusEl.className = 'font-semibold px-2 py-0.5 rounded text-xs ' +
+                    (sub.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                     sub.status === 'approved' ? 'bg-green-100 text-green-700' :
+                     sub.status === 'returned' ? 'bg-red-100 text-red-700' :
+                     'bg-gray-100 text-gray-700');
+            }
+            if (tableBody && sub.table_body_html) {
+                tableBody.innerHTML = sub.table_body_html;
+                makeTableCalibrationEditable(tableBody);
+                if (sub.calibration && sub.calibration.calibration_data) {
+                    applyCalibrationData(tableBody, sub.calibration.calibration_data);
+                }
+                labelQetaInputsDean(tableBody);
+                computeOverallAverage(tableBody);
+                attachCalibrationInputListeners(tableBody);
+                attachSoDocClickHandlers(tableBody, sub.user_id, submissionId, 'ipcr_submission');
+                showCalibrationButtons(sub.calibration);
+            }
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+        } else {
+            modal.classList.add('hidden');
+            alert('Submission not found.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        modal.classList.add('hidden');
+        alert('Failed to load submission.');
+    }
+};
+
+window.closeDeanPreviewModal = function() {
+    document.getElementById('deanPreviewModal').classList.add('hidden');
+};
+
+// Make table editable only for Q, E, T, Remarks columns (dean calibration)
+function makeTableCalibrationEditable(tableBody) {
+    var rowIndex = 0;
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        var isHeaderRow = row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]');
+
+        var cells = row.querySelectorAll('td');
+        cells.forEach(function(cell, cellIdx) {
+            cell.setAttribute('contenteditable', 'false');
+            cell.style.userSelect = 'none';
+            cell.querySelectorAll('input, textarea').forEach(function(el) {
+                el.setAttribute('readonly', 'true');
+                el.setAttribute('disabled', 'true');
+                el.style.pointerEvents = 'none';
+            });
+        });
+
+        // For data rows (8 cells: MFO|SI|Accomplishments|Q|E|T|A|Remarks), enable Q(3), E(4), T(5), Remarks(7)
+        if (!isHeaderRow && cells.length >= 8) {
+            row.setAttribute('data-calibration-row', rowIndex);
+            [3, 4, 5].forEach(function(idx) {
+                var input = cells[idx] ? cells[idx].querySelector('input[type="number"]') : null;
+                if (input) {
+                    input.removeAttribute('readonly');
+                    input.removeAttribute('disabled');
+                    input.style.pointerEvents = 'auto';
+                    input.style.backgroundColor = '#fefce8';
+                    input.style.border = '1px solid #fbbf24';
+                    input.style.borderRadius = '4px';
+                    input.setAttribute('data-calibration-field', idx === 3 ? 'q' : idx === 4 ? 'e' : 't');
+                    input.min = '1';
+                    input.max = '5';
+                    input.step = '0.01';
+                }
+            });
+            // Remarks cell (index 7) - enable text input or make contenteditable
+            if (cells[7]) {
+                var remarksInput = cells[7].querySelector('input, textarea');
+                if (remarksInput) {
+                    remarksInput.removeAttribute('readonly');
+                    remarksInput.removeAttribute('disabled');
+                    remarksInput.style.pointerEvents = 'auto';
+                    remarksInput.style.backgroundColor = '#fefce8';
+                    remarksInput.style.border = '1px solid #fbbf24';
+                    remarksInput.style.borderRadius = '4px';
+                    remarksInput.setAttribute('data-calibration-field', 'remarks');
+                } else {
+                    cells[7].setAttribute('contenteditable', 'true');
+                    cells[7].style.backgroundColor = '#fefce8';
+                    cells[7].style.border = '1px solid #fbbf24';
+                    cells[7].style.borderRadius = '4px';
+                    cells[7].style.userSelect = 'text';
+                    cells[7].style.cursor = 'text';
+                    cells[7].setAttribute('data-calibration-field', 'remarks');
+                }
+            }
+            rowIndex++;
+        }
+    });
+}
+
+// Apply saved calibration data to table inputs
+function applyCalibrationData(tableBody, calibrationData) {
+    if (!calibrationData || !Array.isArray(calibrationData)) return;
+    var dataRowIndex = 0;
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        var isHeaderRow = row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]');
+        var cells = row.querySelectorAll('td');
+        if (!isHeaderRow && cells.length >= 8) {
+            var rowData = calibrationData[dataRowIndex];
+            if (rowData) {
+                var qInput = cells[3] ? cells[3].querySelector('input[type="number"]') : null;
+                var eInput = cells[4] ? cells[4].querySelector('input[type="number"]') : null;
+                var tInput = cells[5] ? cells[5].querySelector('input[type="number"]') : null;
+                if (qInput && rowData.q !== undefined && rowData.q !== null) qInput.value = rowData.q;
+                if (eInput && rowData.e !== undefined && rowData.e !== null) eInput.value = rowData.e;
+                if (tInput && rowData.t !== undefined && rowData.t !== null) tInput.value = rowData.t;
+                if (rowData.remarks !== undefined && rowData.remarks !== null) {
+                    var remarksInput = cells[7] ? cells[7].querySelector('input, textarea') : null;
+                    if (remarksInput) {
+                        remarksInput.value = rowData.remarks;
+                    } else if (cells[7]) {
+                        cells[7].textContent = rowData.remarks;
+                    }
+                }
+            }
+            dataRowIndex++;
+        }
+    });
+}
+
+// Attach input listeners for live A=(Q+E+T)/3 computation during calibration
+function attachCalibrationInputListeners(tableBody) {
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        var isHeaderRow = row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]');
+        var cells = row.querySelectorAll('td');
+        if (!isHeaderRow && cells.length >= 7) {
+            var qInput = cells[3] ? cells[3].querySelector('input[type="number"]') : null;
+            var eInput = cells[4] ? cells[4].querySelector('input[type="number"]') : null;
+            var tInput = cells[5] ? cells[5].querySelector('input[type="number"]') : null;
+            var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
+            if (qInput && eInput && tInput && aInput) {
+                var recompute = function() {
+                    var q = parseFloat(qInput.value);
+                    var e = parseFloat(eInput.value);
+                    var t = parseFloat(tInput.value);
+                    if (!isNaN(q) && !isNaN(e) && !isNaN(t)) {
+                        aInput.value = ((q + e + t) / 3).toFixed(2);
+                    }
+                    computeOverallAverage(tableBody);
+                };
+                qInput.addEventListener('input', recompute);
+                eInput.addEventListener('input', recompute);
+                tInput.addEventListener('input', recompute);
+            }
+        }
+    });
+}
+
+// Collect calibration data from the table
+function collectCalibrationData(tableBody) {
+    var data = [];
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        var isHeaderRow = row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]');
+        var cells = row.querySelectorAll('td');
+        if (!isHeaderRow && cells.length >= 8) {
+            var qInput = cells[3] ? cells[3].querySelector('input[type="number"]') : null;
+            var eInput = cells[4] ? cells[4].querySelector('input[type="number"]') : null;
+            var tInput = cells[5] ? cells[5].querySelector('input[type="number"]') : null;
+            var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
+            var remarksInput = cells[7] ? cells[7].querySelector('input, textarea') : null;
+            var remarksValue = remarksInput ? remarksInput.value : (cells[7] ? cells[7].textContent.trim() : '');
+            data.push({
+                q: qInput ? parseFloat(qInput.value) || 0 : 0,
+                e: eInput ? parseFloat(eInput.value) || 0 : 0,
+                t: tInput ? parseFloat(tInput.value) || 0 : 0,
+                a: aInput ? parseFloat(aInput.value) || 0 : 0,
+                remarks: remarksValue
+            });
+        }
+    });
+    return data;
+}
+
+// Show/hide calibration buttons and status
+function showCalibrationButtons(calibration) {
+    var draftBtn = document.getElementById('deanSaveDraftBtn');
+    var calibrateBtn = document.getElementById('deanCalibrateBtn');
+    var statusEl = document.getElementById('deanCalibrationStatus');
+
+    draftBtn.classList.remove('hidden');
+    calibrateBtn.classList.remove('hidden');
+
+    if (calibration) {
+        statusEl.classList.remove('hidden');
+        if (calibration.status === 'calibrated') {
+            statusEl.textContent = 'Calibrated';
+            statusEl.className = 'text-xs font-semibold px-2 py-1 rounded bg-green-100 text-green-700';
+        } else {
+            statusEl.textContent = 'Draft';
+            statusEl.className = 'text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-700';
+        }
+    } else {
+        statusEl.classList.add('hidden');
+    }
+}
+
+// Reset calibration UI elements
+function resetCalibrationUI() {
+    document.getElementById('deanSaveDraftBtn').classList.add('hidden');
+    document.getElementById('deanCalibrateBtn').classList.add('hidden');
+    document.getElementById('deanCalibrationStatus').classList.add('hidden');
+}
+
+// Save calibration (draft or finalize)
+window.saveDeanCalibration = async function(status) {
+    if (!currentDeanPreviewSubmissionId) return;
+
+    var tableBody = document.getElementById('deanPreviewTableBody');
+    var calibrationData = collectCalibrationData(tableBody);
+    var avgEl = document.getElementById('deanPreviewAvgValue');
+    var overallScore = avgEl ? parseFloat(avgEl.textContent) || 0 : 0;
+
+    var actionLabel = status === 'calibrated' ? 'Calibrate' : 'Save Draft';
+    if (status === 'calibrated') {
+        const confirmed = await new Promise((resolve) => {
+            const modal = document.getElementById('calibrationConfirmModal');
+            document.getElementById('confirmCalibrationBtn').onclick = function() {
+                modal.classList.add('hidden');
+                resolve(true);
+            };
+            window.closeCalibrationConfirmModal = function() {
+                modal.classList.add('hidden');
+                resolve(false);
+            };
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        });
+        if (!confirmed) return;
+    }
+
+    var btn = status === 'calibrated' ? document.getElementById('deanCalibrateBtn') : document.getElementById('deanSaveDraftBtn');
+    var originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>' + actionLabel + '...';
+
+    try {
+        var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        var response = await fetch('/dean/review/calibrations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                ipcr_submission_id: currentDeanPreviewSubmissionId,
+                calibration_data: calibrationData,
+                overall_score: overallScore,
+                status: status
+            })
+        });
+        var data = await response.json();
+        if (data.success) {
+            showCalibrationButtons(data.calibration);
+            // Update the submission in the local array so cards reflect new status
+            var arr = currentDeanPreviewType === 'faculty' ? allFacultySubmissions : allCalibrationSubmissions;
+            for (var i = 0; i < arr.length; i++) {
+                if (arr[i].id === currentDeanPreviewSubmissionId) {
+                    arr[i].calibration_status = data.calibration.status;
+                    arr[i].calibration_score = data.calibration.overall_score;
+                    break;
+                }
+            }
+            // Refresh expanded view if visible
+            if (currentExpandedType && !document.getElementById('expandedView').classList.contains('hidden')) {
+                expandSection(currentExpandedType);
+                filterExpanded(currentExpandedFilter);
+            }
+            // Show success toast
+            var toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 z-[2000] bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 animate-pulse';
+            toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + (status === 'calibrated' ? 'Calibration saved successfully!' : 'Draft saved successfully!');
+            document.body.appendChild(toast);
+            setTimeout(function() { toast.remove(); }, 3000);
+        } else {
+            alert(data.message || 'Failed to save calibration.');
+        }
+    } catch (error) {
+        console.error('Error saving calibration:', error);
+        alert('Failed to save calibration. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+};
+
+// Label QETA inputs and compute A = (Q + E + T) / 3 for each data row
+function labelQetaInputsDean(tableBody) {
+    if (!tableBody) return;
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        if (row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]')) {
+            return;
+        }
+        var cells = row.querySelectorAll('td');
+        // Data rows: MFO | SI | Accomplishments | Q | E | T | A | Remarks
+        if (cells.length >= 7) {
+            var qInput = cells[3] ? cells[3].querySelector('input[type="number"]') : null;
+            var eInput = cells[4] ? cells[4].querySelector('input[type="number"]') : null;
+            var tInput = cells[5] ? cells[5].querySelector('input[type="number"]') : null;
+            var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
+            if (qInput && eInput && tInput && aInput) {
+                var q = parseFloat(qInput.value);
+                var e = parseFloat(eInput.value);
+                var t = parseFloat(tInput.value);
+                if (!isNaN(q) && !isNaN(e) && !isNaN(t)) {
+                    aInput.value = ((q + e + t) / 3).toFixed(2);
+                }
+                aInput.readOnly = true;
+                aInput.style.backgroundColor = '#f3f4f6';
+            }
+        }
+    });
+}
+
+// Compute and display overall average of all A values
+function computeOverallAverage(tableBody) {
+    var allA = [];
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        if (row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]')) {
+            return;
+        }
+        var cells = row.querySelectorAll('td');
+        if (cells.length >= 7) {
+            var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
+            if (aInput && aInput.value) {
+                var val = parseFloat(aInput.value);
+                if (!isNaN(val)) allA.push(val);
+            }
+        }
+    });
+    var container = document.getElementById('deanPreviewOverallAvg');
+    var valueEl = document.getElementById('deanPreviewAvgValue');
+    if (allA.length > 0) {
+        var avg = allA.reduce(function(s, v) { return s + v; }, 0) / allA.length;
+        valueEl.textContent = avg.toFixed(2);
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+}
+
+// Attach click handlers to SO rows (bg-blue-100) to view supporting documents
+function attachSoDocClickHandlers(tableBody, ownerId, docId, docType) {
+    var rows = tableBody.querySelectorAll('tr.bg-blue-100');
+    rows.forEach(function(row) {
+        var soSpan = row.querySelector('span.font-semibold.text-gray-800');
+        var soInput = row.querySelector('input[type="text"]');
+        var soLabel = '';
+        var soDescription = '';
+        if (soSpan) soLabel = soSpan.textContent.trim().replace(/:$/, '');
+        if (soInput) soDescription = soInput.value || soInput.getAttribute('value') || '';
+        if (!soLabel) return;
+
+        // Re-enable pointer events on the row for clicking
+        row.style.cursor = 'pointer';
+        row.title = 'Click to view supporting documents';
+        row.style.pointerEvents = 'auto';
+        row.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            openDeanSoDocsModal(soLabel, soDescription, ownerId, docId, docType);
+        });
+
+        // Add/refresh doc count badge
+        var badge = row.querySelector('.so-doc-badge');
+        if (!badge) {
+            var td = row.querySelector('td');
+            if (td) {
+                badge = document.createElement('span');
+                badge.className = 'so-doc-badge ml-2 inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full';
+                badge.innerHTML = '<i class="fas fa-paperclip text-[10px]"></i> <span class="so-doc-count">...</span>';
+                badge.style.fontSize = '11px';
+                var innerDiv = td.querySelector('div.flex') || td;
+                innerDiv.appendChild(badge);
+            }
+        }
+        if (badge) {
+            var countEl = badge.querySelector('.so-doc-count');
+            if (countEl) fetchDeanSoDocCount(soLabel, ownerId, docId, docType, countEl);
+        }
+    });
+}
+
+function fetchDeanSoDocCount(soLabel, ownerId, docId, docType, countElement) {
+    var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    var url = '/faculty/supporting-documents?documentable_type=' + encodeURIComponent(docType) +
+        '&documentable_id=' + docId +
+        '&so_label=' + encodeURIComponent(soLabel) +
+        '&owner_id=' + ownerId;
+    fetch(url, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && countElement) countElement.textContent = data.documents.length;
+        })
+        .catch(function() { if (countElement) countElement.textContent = '0'; });
+}
+
+function openDeanSoDocsModal(soLabel, soDescription, ownerId, docId, docType) {
+    document.getElementById('deanSoDocsTitle').textContent = soLabel;
+    document.getElementById('deanSoDocsDesc').textContent = soDescription || '';
+    document.getElementById('deanSoDocsModal').classList.remove('hidden');
+
+    var container = document.getElementById('deanSoDocsList');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><svg class="animate-spin h-5 w-5 text-gray-300 mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span class="text-sm text-gray-400">Loading documents...</span></div>';
+
+    var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    var url = '/faculty/supporting-documents?documentable_type=' + encodeURIComponent(docType) +
+        '&documentable_id=' + docId +
+        '&so_label=' + encodeURIComponent(soLabel) +
+        '&owner_id=' + ownerId;
+    fetch(url, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                renderDeanSoDocs(data.documents);
+            } else {
+                container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">Failed to load documents</p>';
+            }
+        })
+        .catch(function() {
+            container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">Error loading documents</p>';
+        });
+}
+
+function renderDeanSoDocs(documents) {
+    var container = document.getElementById('deanSoDocsList');
+    if (!documents || documents.length === 0) {
+        container.innerHTML = '<div class="text-center py-8"><i class="fas fa-folder-open text-gray-200 text-3xl mb-3"></i><p class="text-sm text-gray-400">No supporting documents</p></div>';
+        return;
+    }
+    container.innerHTML = documents.map(function(doc) {
+        var isImage = (doc.mime_type || '').match(/jpg|jpeg|png|gif|webp|image/i);
+        var isPdf = (doc.mime_type || '').match(/pdf/i) || (doc.original_name || '').endsWith('.pdf');
+        var icon = 'fas fa-file text-gray-400';
+        if (isImage) icon = 'fas fa-image text-green-500';
+        else if (isPdf) icon = 'fas fa-file-pdf text-red-500';
+        else if ((doc.original_name || '').match(/\.(doc|docx)$/i)) icon = 'fas fa-file-word text-blue-500';
+        else if ((doc.original_name || '').match(/\.(xls|xlsx)$/i)) icon = 'fas fa-file-excel text-green-600';
+        else if ((doc.original_name || '').match(/\.(ppt|pptx)$/i)) icon = 'fas fa-file-powerpoint text-orange-500';
+
+        var nameDisplay = doc.original_name.length > 35 ? doc.original_name.substring(0, 32) + '...' : doc.original_name;
+        var previewHtml = isImage
+            ? '<div class="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-200"><img src="' + doc.path + '" alt="" class="w-full h-full object-cover" /></div>'
+            : '<i class="' + icon + ' text-lg flex-shrink-0"></i>';
+
+        return '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-2 hover:bg-gray-100 transition">' +
+            previewHtml +
+            '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-medium text-gray-800 truncate" title="' + doc.original_name + '">' + nameDisplay + '</p>' +
+                '<p class="text-xs text-gray-400">' + (doc.file_size_human || '') + ' &bull; ' + (doc.created_at || '') + '</p>' +
+            '</div>' +
+            '<a href="/faculty/supporting-documents/' + doc.id + '/download" class="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition" title="Download"><i class="fas fa-download"></i></a>' +
+        '</div>';
+    }).join('');
+}
+
+window.closeDeanSoDocsModal = function() {
+    document.getElementById('deanSoDocsModal').classList.add('hidden');
+};
+</script>
+@endif
+
+@if(isset($returnedCalibration) && $returnedCalibration)
+<script>
+window.openReturnedCalibrationModal = function() {
+    var modal = document.getElementById('returnedCalibrationModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    var tableBody = document.getElementById('returnedCalibrationTableBody');
+    if (!tableBody) return;
+
+    var calData = @json($returnedCalibration->calibration_data ?? []);
+    var tableHtml = @json($activeSubmission->table_body_html ?? '');
+
+    // Load original table HTML
+    tableBody.innerHTML = tableHtml;
+
+    // Apply calibration values and make everything read-only
+    var dataRowIndex = 0;
+    tableBody.querySelectorAll('tr').forEach(function(row) {
+        var isHeaderRow = row.classList.contains('bg-green-100') ||
+            row.classList.contains('bg-purple-100') ||
+            row.classList.contains('bg-orange-100') ||
+            row.classList.contains('bg-blue-100') ||
+            row.classList.contains('bg-gray-100') ||
+            row.querySelector('td[colspan]');
+
+        var cells = row.querySelectorAll('td');
+
+        // Make all cells read-only
+        cells.forEach(function(cell) {
+            cell.setAttribute('contenteditable', 'false');
+            cell.style.userSelect = 'none';
+            cell.querySelectorAll('input, textarea').forEach(function(el) {
+                el.setAttribute('readonly', 'true');
+                el.setAttribute('disabled', 'true');
+                el.style.pointerEvents = 'none';
+            });
+        });
+
+        // For data rows, overlay calibration values
+        if (!isHeaderRow && cells.length >= 8) {
+            var rowData = calData[dataRowIndex];
+            if (rowData) {
+                var qInput = cells[3] ? cells[3].querySelector('input[type="number"]') : null;
+                var eInput = cells[4] ? cells[4].querySelector('input[type="number"]') : null;
+                var tInput = cells[5] ? cells[5].querySelector('input[type="number"]') : null;
+                var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
+
+                if (qInput && rowData.q !== undefined && rowData.q !== null) {
+                    qInput.value = rowData.q;
+                    qInput.style.backgroundColor = '#ecfdf5';
+                }
+                if (eInput && rowData.e !== undefined && rowData.e !== null) {
+                    eInput.value = rowData.e;
+                    eInput.style.backgroundColor = '#ecfdf5';
+                }
+                if (tInput && rowData.t !== undefined && rowData.t !== null) {
+                    tInput.value = rowData.t;
+                    tInput.style.backgroundColor = '#ecfdf5';
+                }
+                if (aInput && rowData.a !== undefined && rowData.a !== null) {
+                    aInput.value = rowData.a;
+                    aInput.style.backgroundColor = '#ecfdf5';
+                    aInput.style.fontWeight = 'bold';
+                } else if (aInput && qInput && eInput && tInput) {
+                    var q = parseFloat(qInput.value) || 0;
+                    var e = parseFloat(eInput.value) || 0;
+                    var t = parseFloat(tInput.value) || 0;
+                    aInput.value = ((q + e + t) / 3).toFixed(2);
+                    aInput.style.backgroundColor = '#ecfdf5';
+                    aInput.style.fontWeight = 'bold';
+                }
+                if (rowData.remarks !== undefined && rowData.remarks !== null && rowData.remarks !== '') {
+                    var remarksInput = cells[7] ? cells[7].querySelector('input, textarea') : null;
+                    if (remarksInput) {
+                        remarksInput.value = rowData.remarks;
+                        remarksInput.style.backgroundColor = '#ecfdf5';
+                    } else if (cells[7]) {
+                        cells[7].textContent = rowData.remarks;
+                        cells[7].style.backgroundColor = '#ecfdf5';
+                    }
+                }
+            }
+            dataRowIndex++;
+        }
+    });
+};
+
+window.closeReturnedCalibrationModal = function() {
+    document.getElementById('returnedCalibrationModal').classList.add('hidden');
+};
+</script>
+@endif
 
 <script>document.body.style.visibility = 'visible';</script>
 </body>

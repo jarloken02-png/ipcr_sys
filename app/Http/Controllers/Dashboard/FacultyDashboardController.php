@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use App\Services\ActivityLogService;
+use App\Models\DeanCalibration;
 
 class FacultyDashboardController extends Controller
 {
@@ -307,6 +308,39 @@ class FacultyDashboardController extends Controller
                     unset($soEntry);
                 }
 
+                // Load calibration actual ratings from dean calibrations
+                if ($activeSubmission && !empty($soPerformanceData)) {
+                    $calibration = DeanCalibration::where('ipcr_submission_id', $activeSubmission->id)
+                        ->where('status', 'calibrated')
+                        ->latest()
+                        ->first();
+
+                    if ($calibration && $calibration->calibration_data) {
+                        $calData = $calibration->calibration_data;
+                        $calIndex = 0;
+                        foreach ($soPerformanceData as &$soEntry) {
+                            $soCalRatings = [];
+                            foreach ($soEntry['rows'] as $rowIdx => $row) {
+                                if (isset($calData[$calIndex])) {
+                                    $cd = $calData[$calIndex];
+                                    $a = isset($cd['a']) ? (float) $cd['a'] : 0;
+                                    if ($a > 0) $soCalRatings[] = $a;
+                                }
+                                $calIndex++;
+                            }
+                            $soEntry['actual_rating'] = count($soCalRatings) > 0
+                                ? round(array_sum($soCalRatings) / count($soCalRatings), 2)
+                                : 0;
+                        }
+                        unset($soEntry);
+                    } else {
+                        foreach ($soPerformanceData as &$soEntry) {
+                            $soEntry['actual_rating'] = 0;
+                        }
+                        unset($soEntry);
+                    }
+                }
+
             } catch (\Throwable $e) {
                 \Log::error('Failed to extract SO performance data', [
                     'submission_id' => $activeSubmission->id ?? null,
@@ -357,12 +391,32 @@ class FacultyDashboardController extends Controller
             ->limit(10)
             ->get();
 
+        $readNotifIds = DB::table('notification_reads')
+            ->where('user_id', auth()->id())
+            ->whereIn('notification_id', $notifications->pluck('id'))
+            ->pluck('notification_id')
+            ->toArray();
+        $unreadCount = $notifications->whereNotIn('id', $readNotifIds)->count();
+
         $deadlines = UpcomingDeadline::active()
             ->upcoming()
             ->forAudience($userRole)
             ->orderBy('deadline_date')
             ->limit(5)
             ->get();
+
+        $departmentName = auth()->user()->department?->name ?? 'Your Department';
+        $departmentCode = auth()->user()->department?->code ?? '';
+
+        // Load calibration for the active submission (if a dean has calibrated it)
+        $returnedCalibration = null;
+        if ($activeSubmission) {
+            $returnedCalibration = DeanCalibration::where('ipcr_submission_id', $activeSubmission->id)
+                ->where('status', 'calibrated')
+                ->with('dean:id,name')
+                ->latest()
+                ->first();
+        }
 
         return view('dashboard.faculty.index', compact(
             'strategicObjectivesText',
@@ -376,7 +430,13 @@ class FacultyDashboardController extends Controller
             'ipcrPercentageText',
             'soPerformanceData',
             'notifications',
-            'deadlines'
+            'readNotifIds',
+            'unreadCount',
+            'deadlines',
+            'departmentName',
+            'departmentCode',
+            'returnedCalibration',
+            'activeSubmission'
         ));
     }
 
@@ -406,11 +466,25 @@ class FacultyDashboardController extends Controller
 
         $departmentName = auth()->user()->department?->name ?? 'Your Department';
         $departmentCode = auth()->user()->department?->code ?? '';
+
+        $userRole = auth()->user()->getPrimaryRole() ?? 'faculty';
+        $notifications = AdminNotification::active()
+            ->forAudience($userRole)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $readNotifIds = DB::table('notification_reads')
+            ->where('user_id', auth()->id())
+            ->whereIn('notification_id', $notifications->pluck('id'))
+            ->pluck('notification_id')
+            ->toArray();
+        $unreadCount = $notifications->whereNotIn('id', $readNotifIds)->count();
             
         return view('dashboard.faculty.my-ipcrs', compact(
             'templates', 'submissions', 'opcrSubmissions',
             'savedIpcrs', 'savedOpcrs',
-            'departmentName', 'departmentCode'
+            'departmentName', 'departmentCode', 'notifications', 'readNotifIds', 'unreadCount'
         ));
     }
 
@@ -423,9 +497,43 @@ class FacultyDashboardController extends Controller
         $completenessColor = $user->getCompletenessColor();
         $photoCount = $user->photos()->count();
         
+        $userRole = auth()->user()->getPrimaryRole() ?? 'faculty';
+        $notifications = AdminNotification::active()
+            ->forAudience($userRole)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $readNotifIds = DB::table('notification_reads')
+            ->where('user_id', auth()->id())
+            ->whereIn('notification_id', $notifications->pluck('id'))
+            ->pluck('notification_id')
+            ->toArray();
+        $unreadCount = $notifications->whereNotIn('id', $readNotifIds)->count();
+
         return view('dashboard.faculty.profile', compact(
-            'departments', 'designations', 'profileCompleteness', 'completenessColor', 'photoCount'
+            'departments', 'designations', 'profileCompleteness', 'completenessColor', 'photoCount',
+            'notifications', 'readNotifIds', 'unreadCount'
         ));
+    }
+
+    public function markAllRead(): \Illuminate\Http\JsonResponse
+    {
+        $userRole = auth()->user()->getPrimaryRole() ?? 'faculty';
+        $notifIds = AdminNotification::active()
+            ->forAudience($userRole)
+            ->pluck('id');
+
+        $userId = auth()->id();
+        foreach ($notifIds as $notifId) {
+            DB::table('notification_reads')->insertOrIgnore([
+                'user_id' => $userId,
+                'notification_id' => $notifId,
+                'read_at' => now(),
+            ]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function changePassword(Request $request)

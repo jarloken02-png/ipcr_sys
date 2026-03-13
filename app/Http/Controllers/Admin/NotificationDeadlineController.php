@@ -17,7 +17,7 @@ class NotificationDeadlineController extends Controller
      */
     public function index(): View
     {
-        $notifications = AdminNotification::orderByDesc('created_at')->get();
+        $notifications = AdminNotification::whereNull('user_id')->orderByDesc('created_at')->get();
         $deadlines = UpcomingDeadline::orderBy('deadline_date')->get();
 
         return view('admin.notifications.index', compact('notifications', 'deadlines'));
@@ -63,6 +63,11 @@ class NotificationDeadlineController extends Controller
         $validated['published_at'] = !empty($validated['published_at']) ? $validated['published_at'] : null;
         $validated['expires_at']   = !empty($validated['expires_at'])   ? $validated['expires_at']   : null;
 
+        // Guard: admin panel cannot edit user-targeted notifications
+        if ($notification->user_id !== null) {
+            abort(403, 'This notification is user-targeted and cannot be managed here.');
+        }
+
         $notification->update($validated);
 
         return redirect()->route('admin.notifications.index')
@@ -71,6 +76,11 @@ class NotificationDeadlineController extends Controller
 
     public function toggleNotification(AdminNotification $notification): RedirectResponse
     {
+        // User-targeted notifications are managed exclusively for users, not via the admin panel
+        if ($notification->user_id !== null) {
+            abort(403, 'This notification is user-targeted and cannot be managed here.');
+        }
+
         $notification->update(['is_active' => !$notification->is_active]);
 
         $status = $notification->is_active ? 'activated' : 'deactivated';
@@ -80,6 +90,11 @@ class NotificationDeadlineController extends Controller
 
     public function destroyNotification(AdminNotification $notification): RedirectResponse
     {
+        // User-targeted notifications are managed exclusively for users, not via the admin panel
+        if ($notification->user_id !== null) {
+            abort(403, 'This notification is user-targeted and cannot be managed here.');
+        }
+
         $notification->delete();
 
         return redirect()->route('admin.notifications.index')

@@ -133,8 +133,9 @@ class OpcrExportService
 
     private function fillHeaderData($sheet, $user, Model $document): void
     {
-        $name   = $user->name ?? '';
-        $period = $document->semester . ' ' . $document->school_year;
+        $name        = $user->name ?? '';
+        $designation = $this->resolveUserDesignation($user);
+        $period      = $document->semester . ' ' . $document->school_year;
 
         // ── Change sheet title from "Individual" to "Office" ────────
         // Replace the title cell (typically row 1 or 2) to say OPCR
@@ -142,49 +143,11 @@ class OpcrExportService
 
         // ── Row 4 – commitment paragraph (RichText) ─────────────────
         $a4 = $sheet->getCell('A4')->getValue();
-
-        if ($a4 instanceof RichText) {
-            $elements = $a4->getRichTextElements();
-
-            // Replace the name run (index 1)
-            if (isset($elements[1])) {
-                $elements[1]->setText($name);
-                $elements[1]->getFont()->setBold(true)->setUnderline(true);
-            }
-
-            // Replace the period in the last run
-            $lastIdx = count($elements) - 1;
-            if ($lastIdx >= 2) {
-                $runText = $elements[$lastIdx]->getText();
-                $runText = preg_replace(
-                    '/January \d{4} to \w+ \d{4}/',
-                    $period,
-                    $runText
-                );
-                $runText = str_replace('<Rate_Period + Year>', $period, $runText);
-                $elements[$lastIdx]->setText($runText);
-            }
-
-            $sheet->setCellValue('A4', $a4);
-
-        } else {
-            $text = (string) $a4;
-            $text = preg_replace('/<Faculty_Name>|<FACULTY_NAME>/', $name, $text);
-            $text = preg_replace('/January \d{4} to \w+ \d{4}/', $period, $text);
-            $text = str_replace('<Rate_Period + Year>', $period, $text);
-
-            if (!empty($name) && str_contains($text, $name)) {
-                [$before, $after] = explode($name, $text, 2);
-                $richText = new RichText();
-                $richText->createText($before);
-                $boldRun = $richText->createTextRun($name);
-                $boldRun->getFont()->setBold(true)->setUnderline(true);
-                $richText->createText($after);
-                $sheet->setCellValue('A4', $richText);
-            } else {
-                $sheet->setCellValue('A4', $text);
-            }
-        }
+        $a4Text = $a4 instanceof RichText
+            ? $this->flattenRichText($a4)
+            : (string) $a4;
+        $a4Text = $this->normalizeCommitmentText($a4Text, $name, $designation, $period);
+        $sheet->setCellValue('A4', $this->buildCommitmentRichText($a4Text, $name, $designation));
 
         // ── Row 5 – ratee name (bold + underline) ───────────────────
         $sheet->setCellValue('G5', $name);
@@ -614,6 +577,120 @@ class OpcrExportService
         }
 
         return implode(', ', $parts);
+    }
+
+    /**
+     * Resolve the export user's designation text.
+     */
+    private function resolveUserDesignation($user): string
+    {
+        if (!$user) {
+            return '';
+        }
+
+        if ($user->relationLoaded('designation')) {
+            return (string) optional($user->designation)->title;
+        }
+
+        return (string) optional($user->designation)->title;
+    }
+
+    /**
+     * Convert spreadsheet RichText to plain text.
+     */
+    private function flattenRichText(RichText $richText): string
+    {
+        $text = '';
+        foreach ($richText->getRichTextElements() as $element) {
+            $text .= $element->getText();
+        }
+
+        return $text;
+    }
+
+    /**
+     * Normalize A4 sentence so name/designation/period always match export data.
+     */
+    private function normalizeCommitmentText(string $text, string $name, string $designation, string $period): string
+    {
+        $text = preg_replace('/<Faculty_Name>|<FACULTY_NAME>/i', $name, $text);
+        $text = str_replace(['<Designation in Bold>', '<Designation>', '<DESIGNATION>'], $designation, $text);
+        $text = preg_replace('/January \d{4} to \w+ \d{4}/i', $period, $text);
+        $text = str_replace('<Rate_Period + Year>', $period, $text);
+
+        // Enforce the required opening format:
+        // "I, <Full name>, <Designation> of"
+        if (!empty($name) && !empty($designation)) {
+            $opening = 'I, ' . $name . ', ' . $designation . ' of ';
+            if (preg_match('/^\s*I,\s*.*?\s+of\s+/iu', $text)) {
+                $text = preg_replace('/^\s*I,\s*.*?\s+of\s+/iu', $opening, $text, 1);
+            } else {
+                $text = $opening . ltrim($text);
+            }
+        }
+
+        if (!empty($period)) {
+            $text = preg_replace('/(for the period\s*)([^.]+)(\.)/iu', '$1' . $period . '$3', $text, 1);
+        }
+
+        return $text;
+    }
+
+    /**
+     * Build a RichText value where name is bold+underline and designation is bold.
+     */
+    private function buildCommitmentRichText(string $text, string $name, string $designation): RichText
+    {
+        $richText = new RichText();
+        $prefix = (!empty($name) && !empty($designation))
+            ? 'I, ' . $name . ', ' . $designation
+            : '';
+
+        if ($prefix !== '' && str_starts_with($text, $prefix)) {
+            $run = $richText->createTextRun($prefix);
+            $run->getFont()->setBold(true);
+            $richText->createText(substr($text, strlen($prefix)));
+            return $richText;
+        }
+
+        $tokens = array_values(array_filter(array_unique([$name, $designation])));
+
+        if (count($tokens) === 0) {
+            $richText->createText($text);
+            return $richText;
+        }
+
+        $offset = 0;
+        $textLen = strlen($text);
+
+        while ($offset < $textLen) {
+            $nextPos = null;
+            $nextToken = null;
+
+            foreach ($tokens as $token) {
+                $pos = strpos($text, $token, $offset);
+                if ($pos !== false && ($nextPos === null || $pos < $nextPos)) {
+                    $nextPos = $pos;
+                    $nextToken = $token;
+                }
+            }
+
+            if ($nextPos === null || $nextToken === null) {
+                $richText->createText(substr($text, $offset));
+                break;
+            }
+
+            if ($nextPos > $offset) {
+                $richText->createText(substr($text, $offset, $nextPos - $offset));
+            }
+
+            $run = $richText->createTextRun($nextToken);
+            $run->getFont()->setBold(true);
+
+            $offset = $nextPos + strlen($nextToken);
+        }
+
+        return $richText;
     }
 
     private function applyBorderRow($sheet, int $row): void

@@ -63,7 +63,7 @@
     ]
   },
   "resources/css/dashboard_faculty_index.css": {
-    "file": "assets/dashboard_faculty_index-BXqaWofO.css",
+    "file": "assets/dashboard_faculty_index-D3KkE_nj.css",
     "src": "resources/css/dashboard_faculty_index.css",
     "isEntry": true,
     "name": "dashboard_faculty_index",
@@ -126,19 +126,19 @@
     "isEntry": true
   },
   "resources/js/dashboard_faculty_index.js": {
-    "file": "assets/dashboard_faculty_index-C2AKP3CG.js",
+    "file": "assets/dashboard_faculty_index--H6GLkcj.js",
     "name": "dashboard_faculty_index",
     "src": "resources/js/dashboard_faculty_index.js",
     "isEntry": true
   },
   "resources/js/dashboard_faculty_my-ipcrs.js": {
-    "file": "assets/dashboard_faculty_my-ipcrs-CTDZGESd.js",
+    "file": "assets/dashboard_faculty_my-ipcrs-B7WSeCU7.js",
     "name": "dashboard_faculty_my-ipcrs",
     "src": "resources/js/dashboard_faculty_my-ipcrs.js",
     "isEntry": true
   },
   "resources/js/dashboard_faculty_profile.js": {
-    "file": "assets/dashboard_faculty_profile-BDp9sLXI.js",
+    "file": "assets/dashboard_faculty_profile-DqUJbArO.js",
     "name": "dashboard_faculty_profile",
     "src": "resources/js/dashboard_faculty_profile.js",
     "isEntry": true

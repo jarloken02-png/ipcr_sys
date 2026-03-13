@@ -34,11 +34,19 @@ function getFilteredData(section) {
 function buildChartData(filtered) {
     const labels = filtered.length > 0 ? filtered.map(so => so.label) : ['No Data'];
     const expected = filtered.length > 0 ? filtered.map(so => so.average) : [0];
-    const actual = filtered.length > 0 ? filtered.map(() => 0) : [0];
+    const actual = filtered.length > 0 ? filtered.map(so => so.actual_rating || 0) : [0];
     return { labels, expected, actual };
 }
 
 const initial = buildChartData(soData);
+
+const gradientExpected = ctx.createLinearGradient(0, 0, 0, 350);
+gradientExpected.addColorStop(0, 'rgba(139, 92, 246, 0.6)'); // vibrant violet
+gradientExpected.addColorStop(1, 'rgba(139, 92, 246, 0.0)');
+
+const gradientActual = ctx.createLinearGradient(0, 0, 0, 350);
+gradientActual.addColorStop(0, 'rgba(14, 165, 233, 0.6)'); // energetic sky blue
+gradientActual.addColorStop(1, 'rgba(14, 165, 233, 0.0)');
 
 const performanceChart = new Chart(ctx, {
     type: 'line',
@@ -47,15 +55,27 @@ const performanceChart = new Chart(ctx, {
         datasets: [{
             label: 'Expected Target',
             data: initial.expected,
-            borderColor: 'rgba(168, 85, 247, 0.8)',
-            backgroundColor: 'rgba(168, 85, 247, 0.3)',
+            borderColor: '#8B5CF6',
+            backgroundColor: gradientExpected,
+            borderWidth: 3,
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: '#8B5CF6',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             fill: true,
             tension: 0.4
         }, {
-            label: 'Actual Rating',
+            label: 'Calibrated Rating',
             data: initial.actual,
-            borderColor: 'rgba(59, 130, 246, 0.8)',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderColor: '#0EA5E9',
+            backgroundColor: gradientActual,
+            borderWidth: 3,
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: '#0EA5E9',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             fill: true,
             tension: 0.4,
             borderDash: [5, 5]
@@ -64,21 +84,48 @@ const performanceChart = new Chart(ctx, {
     options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
         plugins: {
             legend: {
                 display: true,
-                position: 'bottom',
+                position: 'top',
+                align: 'end',
                 labels: {
                     usePointStyle: true,
-                    padding: window.innerWidth < 640 ? 8 : 15,
+                    boxWidth: 8,
+                    padding: 20,
                     font: {
-                        size: window.innerWidth < 640 ? 10 : 12
-                    }
+                        family: "'Inter', sans-serif",
+                        size: window.innerWidth < 640 ? 11 : 13,
+                        weight: '600'
+                    },
+                    color: '#4B5563'
                 }
             },
             tooltip: {
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                titleColor: '#1F2937',
+                bodyColor: '#4B5563',
+                titleFont: {
+                    family: "'Inter', sans-serif",
+                    size: 13,
+                    weight: 'bold'
+                },
+                bodyFont: {
+                    family: "'Inter', sans-serif",
+                    size: 12,
+                    weight: '500'
+                },
+                borderColor: '#E5E7EB',
+                borderWidth: 1,
+                padding: 12,
+                boxPadding: 6,
+                usePointStyle: true,
                 callbacks: {
-                    label: function (context) {
+                    label: function(context) {
                         return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
                     }
                 }
@@ -88,21 +135,37 @@ const performanceChart = new Chart(ctx, {
             y: {
                 beginAtZero: true,
                 max: 5,
+                grid: {
+                    color: '#F3F4F6',
+                    drawBorder: false,
+                },
+                border: { display: false, dash: [4, 4] },
                 ticks: {
                     stepSize: 1,
-                    callback: function (value) {
-                        return value.toFixed(0);
-                    },
+                    padding: 10,
+                    color: '#9CA3AF',
                     font: {
-                        size: window.innerWidth < 640 ? 10 : 12
+                        family: "'Inter', sans-serif",
+                        size: window.innerWidth < 640 ? 10 : 12,
+                        weight: '500'
                     }
                 }
             },
             x: {
+                grid: {
+                    display: false,
+                },
+                border: { display: false },
                 ticks: {
+                    padding: 10,
+                    color: '#6B7280',
                     font: {
-                        size: window.innerWidth < 640 ? 9 : 11
-                    }
+                        family: "'Inter', sans-serif",
+                        size: window.innerWidth < 640 ? 10 : 12,
+                        weight: '500'
+                    },
+                    maxRotation: 45,
+                    minRotation: 0
                 }
             }
         }
@@ -351,3 +414,61 @@ function escHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 }
+
+// Compact mode for notifications — synced between popup and sidebar
+let compactMode = localStorage.getItem('notif_compact') === '1';
+
+function applyCompactMode() {
+    document.querySelectorAll('.notif-card').forEach(card => {
+        if (compactMode) {
+            card.classList.add('compact-notif');
+            card.querySelectorAll('.notif-message').forEach(m => m.style.display = 'none');
+            card.querySelectorAll('.notif-time').forEach(t => t.style.display = 'none');
+        } else {
+            card.classList.remove('compact-notif');
+            card.querySelectorAll('.notif-message').forEach(m => m.style.display = '');
+            card.querySelectorAll('.notif-time').forEach(t => t.style.display = '');
+        }
+    });
+    document.querySelectorAll('.compact-toggle-btn').forEach(btn => {
+        if (compactMode) {
+            btn.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
+            btn.classList.remove('bg-gray-50', 'border-gray-200', 'text-gray-500');
+        } else {
+            btn.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
+            btn.classList.add('bg-gray-50', 'border-gray-200', 'text-gray-500');
+        }
+    });
+}
+
+window.toggleCompactMode = function () {
+    compactMode = !compactMode;
+    localStorage.setItem('notif_compact', compactMode ? '1' : '0');
+    applyCompactMode();
+};
+
+// Apply on page load
+document.addEventListener('DOMContentLoaded', applyCompactMode);
+
+// Mark all notifications as read
+window.markAllNotificationsRead = function () {
+    fetch('/faculty/notifications/mark-read', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json',
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Hide all badges
+            document.querySelectorAll('#notifBadge, #sidebarNotifBadge').forEach(el => el.classList.add('hidden'));
+            // Remove unread dots from notification cards
+            document.querySelectorAll('.notif-unread-dot').forEach(dot => dot.remove());
+            // Remove unread styling from cards
+            document.querySelectorAll('.notif-card.notif-unread').forEach(card => card.classList.remove('notif-unread'));
+        }
+    })
+    .catch(() => {});
+};

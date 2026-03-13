@@ -33,6 +33,7 @@
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 12px;
+    position: relative;
 }
 @media (min-width: 768px) {
     .notification-item {
@@ -43,13 +44,47 @@
     background-color: #dbeafe;
     border-left: 4px solid #3b82f6;
 }
+.notification-green {
+    background-color: #dcfce7;
+    border-left: 4px solid #22c55e;
+}
 .notification-yellow {
     background-color: #fef3c7;
     border-left: 4px solid #f59e0b;
 }
+.notification-red {
+    background-color: #fee2e2;
+    border-left: 4px solid #ef4444;
+}
 .notification-gray {
     background-color: #f3f4f6;
     border-left: 4px solid #6b7280;
+}
+/* Compact mode notification items */
+.notification-item.compact-notif {
+    padding: 8px 10px;
+    margin-bottom: 6px;
+}
+@media (min-width: 768px) {
+    .notification-item.compact-notif {
+        padding: 8px 12px;
+    }
+}
+/* Unread notification highlight */
+.notification-item.notif-unread {
+    border-left-width: 4px;
+    font-weight: 500;
+}
+.notification-item.notif-unread::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(59, 130, 246, 0.04);
+    pointer-events: none;
+    border-radius: inherit;
 }
 .deadline-badge {
     display: inline-flex;
