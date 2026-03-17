@@ -1507,6 +1507,13 @@
             const formData = new FormData();
             formData.append('file', file);
 
+            // Show loading overlay
+            const loadingOverlay = document.getElementById('importLoadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+                loadingOverlay.classList.add('flex');
+            }
+
             try {
                 const response = await fetch('{{ route("faculty.ipcr.import") }}', {
                     method: 'POST',
@@ -1569,6 +1576,13 @@
             } catch (error) {
                 console.error('Import error:', error);
                 showAlertModal('error', 'Import Error', 'An error occurred while importing the file.');
+            } finally {
+                // Hide loading overlay
+                const loadingOverlay = document.getElementById('importLoadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('hidden');
+                    loadingOverlay.classList.remove('flex');
+                }
             }
         }
 
@@ -5653,6 +5667,23 @@
         };
 
     </script>
+<!-- Import Loading Overlay -->
+<div id="importLoadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10000] p-4 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full animate-scale-in overflow-hidden">
+        <div class="bg-blue-50 border-b border-blue-200 px-6 py-4 flex items-center gap-3">
+            <div class="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-spinner fa-spin text-blue-600 text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Importing File...</h2>
+            </div>
+        </div>
+        <div class="px-6 py-5">
+            <p class="text-gray-700 text-sm">Please wait while we process your document. This may take a moment.</p>
+        </div>
+    </div>
+</div>
+
 <script>document.body.style.visibility = 'visible';</script>
 </body>
 </html>
