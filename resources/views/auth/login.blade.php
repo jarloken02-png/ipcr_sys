@@ -30,7 +30,7 @@
                     <img src="{{ asset('images/urs_logo.jpg') }}" alt="URS Logo" class="auth-logo">
                 </div>
 
-                <h1>Welcome Back</h1>
+                <h1>Welcome</h1>
 
                 @if (session('success'))
                     <div class="success-message">{{ session('success') }}</div>
