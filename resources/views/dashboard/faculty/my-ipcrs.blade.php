@@ -815,6 +815,9 @@
                                     <button type="button" onclick="exportFromPreview()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-300 hover:bg-blue-100 flex items-center justify-center gap-1">
                                         <i class="fas fa-file-excel"></i> Export
                                     </button>
+                                    <button type="button" onclick="useTemplateAsDraft()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-green-700 bg-green-50 border border-green-300 hover:bg-green-100 flex items-center justify-center gap-1">
+                                        <i class="fas fa-copy"></i> Use Template
+                                    </button>
                                     <button type="button" id="updateSubmissionBtn" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-green-600 hover:bg-green-700 hidden">Update Submission</button>
                                     <button type="button" id="saveCopyBtn" onclick="saveCopyFromPreview()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700">Save</button>
                                     <button type="button" onclick="closeTemplatePreview()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50">Close</button>
@@ -1206,9 +1209,9 @@
             </div>
             <div class="px-6 py-4 space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Template</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Draft</label>
                     <select id="submitSavedCopySelect" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">No templates found</option>
+                        <option value="">No drafts found</option>
                     </select>
                 </div>
             </div>
@@ -1237,9 +1240,9 @@
             </div>
             <div class="px-6 py-4 space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select OPCR Template</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select OPCR Draft</label>
                     <select id="submitOpcrTemplateSelect" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">No templates found</option>
+                        <option value="">No drafts found</option>
                     </select>
                 </div>
             </div>
@@ -1648,9 +1651,9 @@
             // Re-hide the rating/accomplishment/remarks columns for fresh creation
             hideIpcrTableColumns();
             
-            // Hide Export + Save as Template for fresh creation
+            // Show Save as Template button for fresh creation so users can save as template
             document.getElementById('ipcrExportBtn')?.classList.add('hidden');
-            document.getElementById('ipcrSaveAsTemplateBtn')?.classList.add('hidden');
+            document.getElementById('ipcrSaveAsTemplateBtn')?.classList.remove('hidden');
 
             // Check for import file (from create modal input or header button)
             const importFile = document.getElementById('ipcrImportFile');
@@ -1716,23 +1719,23 @@
             const select = document.getElementById('submitSavedCopySelect');
             if (!select) return;
 
-            const templates = await getTemplates();
+            const drafts = await getSavedCopies();
             select.innerHTML = '';
 
-            if (templates.length === 0) {
+            if (drafts.length === 0) {
                 const option = document.createElement('option');
                 option.value = '';
-                option.textContent = 'No templates found';
+                option.textContent = 'No saved drafts found';
                 select.appendChild(option);
                 select.disabled = true;
                 return;
             }
 
             select.disabled = false;
-            templates.forEach(template => {
+            drafts.forEach(draft => {
                 const option = document.createElement('option');
-                option.value = template.id;
-                option.textContent = `${template.title} • ${template.school_year} • ${template.semester}`;
+                option.value = draft.id;
+                option.textContent = `${draft.title} • ${draft.school_year} • ${draft.semester}`;
                 select.appendChild(option);
             });
         }
@@ -1759,13 +1762,13 @@
             const select = document.getElementById('submitSavedCopySelect');
             const selectedId = select ? select.value : '';
             if (!selectedId) {
-                showAlertModal('warning', 'Select a Template', 'Please select a template to submit.');
+                showAlertModal('warning', 'Select a Draft', 'Please select a draft to submit.');
                 return;
             }
             
             try {
-                console.log('Fetching template:', selectedId);
-                const response = await fetch(`/faculty/ipcr/templates/${selectedId}`, {
+                console.log('Fetching saved copy draft:', selectedId);
+                const response = await fetch(`/faculty/ipcr/saved-copies/${selectedId}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1774,19 +1777,19 @@
                     }
                 });
                 
-                console.log('Template response status:', response.status);
+                console.log('Saved copy response status:', response.status);
                 const data = await response.json();
-                console.log('Template data:', data);
+                console.log('Saved copy data:', data);
                 
                 if (!data.success) {
-                    showAlertModal('error', 'Not Found', 'Selected template could not be found.');
+                    showAlertModal('error', 'Not Found', 'Selected draft could not be found.');
                     return;
                 }
                 
-                const item = data.template;
+                const item = data.savedCopy;
                 const soCounts = item.so_count_json || { strategic_objectives: 0, core_functions: 0, support_functions: 0 };
                 
-                console.log('Item from template:', item);
+                console.log('Item from saved copy draft:', item);
                 console.log('Table body HTML:', item.table_body_html);
                 console.log('SO Counts:', soCounts);
                 
@@ -1797,7 +1800,7 @@
                 formData.append('semester', item.semester);
                 formData.append('table_body_html', item.table_body_html || '');
                 formData.append('so_count_json', JSON.stringify(soCounts));
-                formData.append('template_id', selectedId); // Include template_id for document copying
+                formData.append('saved_copy_id', selectedId); // Include saved_copy_id for document copying
                 formData.append('noted_by', item.noted_by || '');
                 formData.append('approved_by', item.approved_by || '');
                 
@@ -3350,6 +3353,53 @@
             });
         }
 
+        function useTemplateAsDraft() {
+            const templateId = document.getElementById('currentPreviewTemplateId')?.value;
+            const docType = document.getElementById('currentSubmissionType')?.value;
+            
+            if (!templateId) {
+                showAlertModal('error', 'Error', 'No template selected');
+                return;
+            }
+            
+            // Determine the document type
+            const docTypeToUse = docType === 'opcr' ? 'opcr' : 'ipcr';
+            const endpoint = docTypeToUse === 'opcr' 
+                ? `/faculty/opcr/templates/${templateId}/save-copy`
+                : `{{ url('faculty/ipcr/templates') }}/${templateId}/save-copy`;
+            
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const docLabel = docTypeToUse.toUpperCase();
+                    showAlertModal('success', 'Success', `Template has been copied to ${docLabel} drafts`, function() {
+                        // Close preview modal
+                        closeTemplatePreview();
+                        // Refresh saved copies list
+                        if (docTypeToUse === 'opcr') {
+                            renderOpcrSavedCopies();
+                        } else {
+                            renderSavedCopies();
+                        }
+                    });
+                } else {
+                    showAlertModal('error', 'Error', data.message || 'Failed to use template as draft');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlertModal('error', 'Error', 'An error occurred while copying the template.');
+            });
+        }
+
         function saveCopyFromTemplate(templateId) {
             fetch(`{{ url('faculty/ipcr/templates') }}/${templateId}/save-copy`, {
                 method: 'POST',
@@ -4204,9 +4254,9 @@
             // Re-hide rating/accomplishment/remarks columns for fresh creation
             hideOpcrTableColumns();
 
-            // Hide Export + Save as Template for fresh creation
+            // Show Save as Template button for fresh creation so users can save as template
             document.getElementById('opcrExportBtn')?.classList.add('hidden');
-            document.getElementById('opcrSaveAsTemplateBtn')?.classList.add('hidden');
+            document.getElementById('opcrSaveAsTemplateBtn')?.classList.remove('hidden');
 
             // Check for import file (from create modal input or header button)
             const importFile = document.getElementById('opcrImportFile');
@@ -5440,23 +5490,23 @@
             var select = document.getElementById('submitOpcrTemplateSelect');
             if (!select) return;
 
-            var templates = await getOpcrTemplates();
+            var drafts = await getOpcrSavedCopies();
             select.innerHTML = '';
 
-            if (templates.length === 0) {
+            if (drafts.length === 0) {
                 var option = document.createElement('option');
                 option.value = '';
-                option.textContent = 'No OPCR templates found';
+                option.textContent = 'No OPCR saved drafts found';
                 select.appendChild(option);
                 select.disabled = true;
                 return;
             }
 
             select.disabled = false;
-            templates.forEach(function(template) {
+            drafts.forEach(function(draft) {
                 var option = document.createElement('option');
-                option.value = template.id;
-                option.textContent = template.title + ' \u2022 ' + (template.school_year || '') + ' \u2022 ' + (template.semester || '');
+                option.value = draft.id;
+                option.textContent = draft.title + ' \u2022 ' + (draft.school_year || '') + ' \u2022 ' + (draft.semester || '');
                 select.appendChild(option);
             });
         }
@@ -5465,12 +5515,12 @@
             var select = document.getElementById('submitOpcrTemplateSelect');
             var selectedId = select ? select.value : '';
             if (!selectedId) {
-                showAlertModal('warning', 'Select a Template', 'Please select an OPCR template to submit.');
+                showAlertModal('warning', 'Select a Draft', 'Please select an OPCR draft to submit.');
                 return;
             }
 
             try {
-                var response = await fetch('/faculty/opcr/templates/' + selectedId, {
+                var response = await fetch('/faculty/opcr/saved-copies/' + selectedId, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -5481,12 +5531,12 @@
 
                 var data = await response.json();
 
-                if (!data.success && !data.template) {
-                    showAlertModal('error', 'Not Found', 'Selected OPCR template could not be found.');
+                if (!data.success && !data.savedCopy) {
+                    showAlertModal('error', 'Not Found', 'Selected OPCR draft could not be found.');
                     return;
                 }
 
-                var item = data.template;
+                var item = data.savedCopy;
                 var soCounts = item.so_count_json || { strategic_objectives: 0, core_functions: 0, support_functions: 0 };
 
                 var formData = new FormData();
@@ -5495,7 +5545,7 @@
                 formData.append('semester', item.semester || 'N/A');
                 formData.append('table_body_html', item.table_body_html || '');
                 formData.append('so_count_json', JSON.stringify(soCounts));
-                formData.append('template_id', selectedId); // Include template_id for document copying
+                formData.append('saved_copy_id', selectedId); // Include saved_copy_id for document copying
                 formData.append('noted_by', item.noted_by || '');
                 formData.append('approved_by', item.approved_by || '');
 
