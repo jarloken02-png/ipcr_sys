@@ -160,7 +160,10 @@ class DatabaseManagementController extends Controller
 
             if (!$process->isSuccessful()) {
                 return redirect()->route('admin.database.index')
-                    ->with('error', 'Restore failed. Error: ' . $process->getErrorOutput());
+                    ->with('error', 'Restore failed. Error: ' . $this->formatProcessError(
+                        $process,
+                        'The database restore command failed.'
+                    ));
             }
 
             ActivityLogService::log('backup_restored', 'Restored database from backup: ' . $filename);
@@ -286,16 +289,63 @@ class DatabaseManagementController extends Controller
             'C:\\xampp\\mysql\\bin\\mysql',
             '/usr/bin/mysql',
             '/usr/local/bin/mysql',
-            'mysql',
+            '/usr/bin/mariadb',
+            '/usr/local/bin/mariadb',
         ];
 
         foreach ($paths as $path) {
-            if (file_exists($path)) {
+            if (is_file($path)) {
                 return $path;
             }
         }
 
-        return 'mysql';
+        foreach (['mysql', 'mariadb'] as $command) {
+            if ($this->isCommandAvailable($command)) {
+                return $command;
+            }
+        }
+
+        throw new \RuntimeException(
+            'No database client binary found. Install mysql or mariadb in the runtime image.'
+        );
+    }
+
+    /**
+     * Detect whether a command is available in PATH.
+     */
+    private function isCommandAvailable(string $command): bool
+    {
+        $lookup = DIRECTORY_SEPARATOR === '\\'
+            ? ['where', $command]
+            : ['which', $command];
+
+        $process = new Process($lookup);
+        $process->run();
+
+        return $process->isSuccessful() && trim($process->getOutput()) !== '';
+    }
+
+    /**
+     * Build a useful process error message for UI display.
+     */
+    private function formatProcessError(Process $process, string $fallback): string
+    {
+        $stderr = trim($process->getErrorOutput());
+        if ($stderr !== '') {
+            return $stderr;
+        }
+
+        $stdout = trim($process->getOutput());
+        if ($stdout !== '') {
+            return $stdout;
+        }
+
+        $exitCode = $process->getExitCode();
+        if ($exitCode !== null) {
+            return $fallback . ' (exit code ' . $exitCode . ')';
+        }
+
+        return $fallback;
     }
 
     /**
