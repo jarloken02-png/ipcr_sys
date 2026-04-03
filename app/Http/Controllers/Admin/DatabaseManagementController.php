@@ -133,37 +133,42 @@ class DatabaseManagementController extends Controller
             $dbHost = config('database.connections.mysql.host');
             $dbPort = config('database.connections.mysql.port');
 
-            // Build mysql command using Process to prevent command injection
-            $mysqlPath = $this->findMysql();
-            $command = [
-                $mysqlPath,
-                '--host=' . $dbHost,
-                '--port=' . $dbPort,
-                '--user=' . $dbUser,
-                $dbName,
-            ];
+            try {
+                // Preferred path: use mysql/mariadb CLI client if available.
+                $mysqlPath = $this->findMysql();
+                $command = [
+                    $mysqlPath,
+                    '--host=' . $dbHost,
+                    '--port=' . $dbPort,
+                    '--user=' . $dbUser,
+                    $dbName,
+                ];
 
-            // Inherit full OS environment and append MYSQL_PWD.
-            // On Windows, dropping core env vars can break TCP initialization in mysql client.
-            $env = getenv();
-            if (!is_array($env)) {
-                $env = [];
-            }
-            if (!empty($dbPass)) {
-                $env['MYSQL_PWD'] = $dbPass;
-            }
+                // Inherit full OS environment and append MYSQL_PWD.
+                // On Windows, dropping core env vars can break TCP initialization in mysql client.
+                $env = getenv();
+                if (!is_array($env)) {
+                    $env = [];
+                }
+                if (!empty($dbPass)) {
+                    $env['MYSQL_PWD'] = $dbPass;
+                }
 
-            $process = new Process($command, null, $env);
-            $process->setTimeout(600);
-            $process->setInput(file_get_contents($filePath));
-            $process->run();
+                $process = new Process($command, null, $env);
+                $process->setTimeout(600);
+                $process->setInput(file_get_contents($filePath));
+                $process->run();
 
-            if (!$process->isSuccessful()) {
-                return redirect()->route('admin.database.index')
-                    ->with('error', 'Restore failed. Error: ' . $this->formatProcessError(
-                        $process,
-                        'The database restore command failed.'
-                    ));
+                if (!$process->isSuccessful()) {
+                    return redirect()->route('admin.database.index')
+                        ->with('error', 'Restore failed. Error: ' . $this->formatProcessError(
+                            $process,
+                            'The database restore command failed.'
+                        ));
+                }
+            } catch (\RuntimeException $binaryException) {
+                // Fallback for containers where mysql/mariadb client is not present.
+                $this->restoreUsingSqlScript($filePath);
             }
 
             ActivityLogService::log('backup_restored', 'Restored database from backup: ' . $filename);
@@ -175,6 +180,176 @@ class DatabaseManagementController extends Controller
             return redirect()->route('admin.database.index')
                 ->with('error', 'Restore failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Restore SQL script without mysql binary by executing statements through PDO.
+     */
+    private function restoreUsingSqlScript(string $filePath): void
+    {
+        if (!is_file($filePath)) {
+            throw new \RuntimeException('SQL file not found for restore.');
+        }
+
+        $sql = file_get_contents($filePath);
+        if ($sql === false) {
+            throw new \RuntimeException('Unable to read SQL file for restore.');
+        }
+
+        $statements = $this->parseSqlStatements($sql);
+
+        if (empty($statements)) {
+            throw new \RuntimeException('No executable SQL statements were found in the selected file.');
+        }
+
+        $connection = DB::connection('mysql');
+        $connection->unprepared('SET FOREIGN_KEY_CHECKS=0;');
+
+        try {
+            foreach ($statements as $statement) {
+                $connection->unprepared($statement);
+            }
+        } finally {
+            $connection->unprepared('SET FOREIGN_KEY_CHECKS=1;');
+        }
+    }
+
+    /**
+     * Parse a SQL script into executable statements with delimiter support.
+     */
+    private function parseSqlStatements(string $sql): array
+    {
+        $statements = [];
+        $buffer = '';
+        $delimiter = ';';
+
+        $lines = preg_split('/\r\n|\r|\n/', $sql) ?: [];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+
+            if ($trimmed === '') {
+                continue;
+            }
+
+            if ($trimmed === '--' || str_starts_with($trimmed, '-- ') || str_starts_with($trimmed, '#')) {
+                continue;
+            }
+
+            if (preg_match('/^DELIMITER\s+(.+)$/i', $trimmed, $match)) {
+                $delimiter = trim($match[1]);
+                continue;
+            }
+
+            if (str_starts_with($trimmed, '/*') && !str_starts_with($trimmed, '/*!') && str_ends_with($trimmed, '*/')) {
+                continue;
+            }
+
+            $buffer .= $line . PHP_EOL;
+
+            if ($this->endsWithSqlDelimiter($buffer, $delimiter)) {
+                $statement = trim($this->stripSqlDelimiter($buffer, $delimiter));
+
+                if ($statement !== '') {
+                    $statements[] = $statement;
+                }
+
+                $buffer = '';
+            }
+        }
+
+        $tail = trim($buffer);
+        if ($tail !== '') {
+            $statements[] = $tail;
+        }
+
+        return $statements;
+    }
+
+    /**
+     * Check whether a SQL buffer ends with the active delimiter outside quoted strings.
+     */
+    private function endsWithSqlDelimiter(string $buffer, string $delimiter): bool
+    {
+        $trimmed = rtrim($buffer);
+
+        if ($delimiter === '' || !str_ends_with($trimmed, $delimiter)) {
+            return false;
+        }
+
+        $withoutDelimiter = substr($trimmed, 0, strlen($trimmed) - strlen($delimiter));
+
+        return $this->hasBalancedQuotes($withoutDelimiter);
+    }
+
+    /**
+     * Remove trailing SQL delimiter from a parsed statement.
+     */
+    private function stripSqlDelimiter(string $buffer, string $delimiter): string
+    {
+        $trimmed = rtrim($buffer);
+
+        if ($delimiter !== '' && str_ends_with($trimmed, $delimiter)) {
+            return substr($trimmed, 0, strlen($trimmed) - strlen($delimiter));
+        }
+
+        return $trimmed;
+    }
+
+    /**
+     * Determine if quote scopes are balanced in SQL text.
+     */
+    private function hasBalancedQuotes(string $sql): bool
+    {
+        $inSingle = false;
+        $inDouble = false;
+        $inBacktick = false;
+        $escaped = false;
+
+        $length = strlen($sql);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $sql[$i];
+
+            if ($inSingle || $inDouble) {
+                if ($char === '\\' && !$escaped) {
+                    $escaped = true;
+                    continue;
+                }
+
+                if ($inSingle && $char === "'" && !$escaped) {
+                    $inSingle = false;
+                } elseif ($inDouble && $char === '"' && !$escaped) {
+                    $inDouble = false;
+                }
+
+                $escaped = false;
+                continue;
+            }
+
+            if ($inBacktick) {
+                if ($char === '`') {
+                    $inBacktick = false;
+                }
+                continue;
+            }
+
+            if ($char === "'") {
+                $inSingle = true;
+                continue;
+            }
+
+            if ($char === '"') {
+                $inDouble = true;
+                continue;
+            }
+
+            if ($char === '`') {
+                $inBacktick = true;
+            }
+        }
+
+        return !$inSingle && !$inDouble && !$inBacktick;
     }
 
     /**
