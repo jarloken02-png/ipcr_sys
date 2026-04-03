@@ -9,4 +9,8 @@ Artisan::command('inspire', function () {
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('backup:run-system')->everyMinute();
+$backupSchedulerEnabled = filter_var(env('SYSTEM_BACKUP_SCHEDULER_ENABLED', false), FILTER_VALIDATE_BOOL);
+
+if ($backupSchedulerEnabled) {
+    Schedule::command('backup:run-system')->everyMinute();
+}
