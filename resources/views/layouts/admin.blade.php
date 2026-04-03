@@ -7,37 +7,13 @@
     <title>@yield('title', 'Admin Panel') - IPCR/OPCR Module</title>
     <link rel="icon" type="image/jpeg" href="{{ asset('images/urs_logo.jpg') }}">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-        }
-    </script>
-    <script>
-        // Check local storage and system preference on page load
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
-
-        function toggleDarkMode() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.theme = 'light';
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.theme = 'dark';
-            }
-        }
-    </script>
+    <script src="{{ Vite::asset('resources/js/tailwind_admin_config.js') }}"></script>
+    <script src="{{ Vite::asset('resources/js/admin_layout_theme.js') }}"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/admin_layout.css', 'resources/js/admin_layout.js'])
     @stack('styles')
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" style="visibility: hidden;">
     <div class="flex min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -106,7 +82,7 @@
 
                 <hr class="my-4 border-gray-200 dark:border-gray-700">
 
-                <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 transition text-left">
+                <button type="button" data-dark-mode-toggle="1" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 transition text-left">
                     <div class="w-5 flex justify-center">
                         <i class="fas fa-moon dark:hidden"></i>
                         <i class="fas fa-sun hidden dark:block text-yellow-500"></i>
@@ -163,6 +139,5 @@
 
     @stack('modals')
     @stack('scripts')
-<script>document.body.style.visibility = 'visible';</script>
 </body>
 </html>

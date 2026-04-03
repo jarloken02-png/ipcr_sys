@@ -1,5 +1,9 @@
 /* Admin Layout — Sidebar & Overlay */
 
+body {
+    font-family: 'Inter', sans-serif;
+}
+
 /* Default: Sidebar is hidden off-screen on small screens */
 @media (max-width: 1279px) {
     #sidebar {

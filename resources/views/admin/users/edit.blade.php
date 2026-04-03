@@ -384,7 +384,5 @@
         </div>
     </div>
 
-    <script>
-        const userId = {{ $user->id }};
-    </script>
+    <div id="adminUsersEditConfig" class="hidden" data-user-id="{{ $user->id }}" aria-hidden="true"></div>
 @endsection

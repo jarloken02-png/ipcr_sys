@@ -24,6 +24,6 @@
             <p class="text-gray-500 text-sm mt-2">Director Dashboard - Content coming soon</p>
         </div>
     </div>
-<script>document.body.style.visibility = 'visible';</script>
+    <script src="{{ Vite::asset('resources/js/dashboard_director_index.js') }}"></script>
 </body>
 </html>

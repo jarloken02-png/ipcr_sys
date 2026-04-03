@@ -345,13 +345,7 @@
                             @endforeach
                         </ul>
                     </div>
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            if (typeof window.openAddUserModal === 'function') {
-                                window.openAddUserModal();
-                            }
-                        });
-                    </script>
+                    <div id="openAddUserModalOnLoad" class="hidden" aria-hidden="true"></div>
                 @endif
 
                 <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-6">

@@ -1,6 +1,6 @@
 {
   "resources/css/admin_layout.css": {
-    "file": "assets/admin_layout-Cx2tAoPo.css",
+    "file": "assets/admin_layout-BMhE6tyB.css",
     "src": "resources/css/admin_layout.css",
     "isEntry": true,
     "name": "admin_layout",
@@ -72,7 +72,7 @@
     ]
   },
   "resources/css/dashboard_faculty_my-ipcrs.css": {
-    "file": "assets/dashboard_faculty_my-ipcrs-OD5N6b1A.css",
+    "file": "assets/dashboard_faculty_my-ipcrs-LgvLODy9.css",
     "src": "resources/css/dashboard_faculty_my-ipcrs.css",
     "isEntry": true,
     "name": "dashboard_faculty_my-ipcrs",
@@ -81,7 +81,7 @@
     ]
   },
   "resources/css/dashboard_faculty_profile.css": {
-    "file": "assets/dashboard_faculty_profile-BlxX05Sh.css",
+    "file": "assets/dashboard_faculty_profile-CyQLqcbD.css",
     "src": "resources/css/dashboard_faculty_profile.css",
     "isEntry": true,
     "name": "dashboard_faculty_profile",
@@ -89,14 +89,47 @@
       "dashboard_faculty_profile.css"
     ]
   },
+  "resources/css/dashboard_faculty_summary-reports.css": {
+    "file": "assets/dashboard_faculty_summary-reports-CwrowXtF.css",
+    "src": "resources/css/dashboard_faculty_summary-reports.css",
+    "isEntry": true,
+    "name": "dashboard_faculty_summary-reports",
+    "names": [
+      "dashboard_faculty_summary-reports.css"
+    ]
+  },
+  "resources/js/admin_activity_logs_index.js": {
+    "file": "assets/admin_activity_logs_index-BiWVm2r9.js",
+    "name": "admin_activity_logs_index",
+    "src": "resources/js/admin_activity_logs_index.js",
+    "isEntry": true
+  },
   "resources/js/admin_layout.js": {
-    "file": "assets/admin_layout-Cr6S9bxL.js",
+    "file": "assets/admin_layout-B94cqnPC.js",
     "name": "admin_layout",
     "src": "resources/js/admin_layout.js",
     "isEntry": true
   },
+  "resources/js/admin_layout_theme.js": {
+    "file": "assets/admin_layout_theme-CNiPiQ1b.js",
+    "name": "admin_layout_theme",
+    "src": "resources/js/admin_layout_theme.js",
+    "isEntry": true
+  },
+  "resources/js/admin_notifications_index.js": {
+    "file": "assets/admin_notifications_index-ydktX5uZ.js",
+    "name": "admin_notifications_index",
+    "src": "resources/js/admin_notifications_index.js",
+    "isEntry": true
+  },
+  "resources/js/admin_role_management_index.js": {
+    "file": "assets/admin_role_management_index-CM5TmBTc.js",
+    "name": "admin_role_management_index",
+    "src": "resources/js/admin_role_management_index.js",
+    "isEntry": true
+  },
   "resources/js/admin_users_edit.js": {
-    "file": "assets/admin_users_edit-BOJFbJrP.js",
+    "file": "assets/admin_users_edit-CWSvYypo.js",
     "name": "admin_users_edit",
     "src": "resources/js/admin_users_edit.js",
     "isEntry": true
@@ -108,7 +141,7 @@
     "isEntry": true
   },
   "resources/js/auth_login.js": {
-    "file": "assets/auth_login-B3zMfxrV.js",
+    "file": "assets/auth_login-DiiNtCYD.js",
     "name": "auth_login",
     "src": "resources/js/auth_login.js",
     "isEntry": true
@@ -120,9 +153,27 @@
     "isEntry": true
   },
   "resources/js/auth_verify-code.js": {
-    "file": "assets/auth_verify-code-WQVDmu41.js",
+    "file": "assets/auth_verify-code-28AbneTk.js",
     "name": "auth_verify-code",
     "src": "resources/js/auth_verify-code.js",
+    "isEntry": true
+  },
+  "resources/js/dashboard_admin_index_page.js": {
+    "file": "assets/dashboard_admin_index_page-CL928-lq.js",
+    "name": "dashboard_admin_index_page",
+    "src": "resources/js/dashboard_admin_index_page.js",
+    "isEntry": true
+  },
+  "resources/js/dashboard_director_index.js": {
+    "file": "assets/dashboard_director_index-BQ2uDqem.js",
+    "name": "dashboard_director_index",
+    "src": "resources/js/dashboard_director_index.js",
+    "isEntry": true
+  },
+  "resources/js/dashboard_faculty_dean-ipcr-submission.js": {
+    "file": "assets/dashboard_faculty_dean-ipcr-submission-fg8nPPhG.js",
+    "name": "dashboard_faculty_dean-ipcr-submission",
+    "src": "resources/js/dashboard_faculty_dean-ipcr-submission.js",
     "isEntry": true
   },
   "resources/js/dashboard_faculty_index.js": {
@@ -131,16 +182,46 @@
     "src": "resources/js/dashboard_faculty_index.js",
     "isEntry": true
   },
+  "resources/js/dashboard_faculty_index_page.js": {
+    "file": "assets/dashboard_faculty_index_page-6E0BM2yx.js",
+    "name": "dashboard_faculty_index_page",
+    "src": "resources/js/dashboard_faculty_index_page.js",
+    "isEntry": true
+  },
   "resources/js/dashboard_faculty_my-ipcrs.js": {
     "file": "assets/dashboard_faculty_my-ipcrs-B7WSeCU7.js",
     "name": "dashboard_faculty_my-ipcrs",
     "src": "resources/js/dashboard_faculty_my-ipcrs.js",
     "isEntry": true
   },
+  "resources/js/dashboard_faculty_my-ipcrs_page.js": {
+    "file": "assets/dashboard_faculty_my-ipcrs_page-hXE8Q6JC.js",
+    "name": "dashboard_faculty_my-ipcrs_page",
+    "src": "resources/js/dashboard_faculty_my-ipcrs_page.js",
+    "isEntry": true
+  },
   "resources/js/dashboard_faculty_profile.js": {
-    "file": "assets/dashboard_faculty_profile-DqUJbArO.js",
+    "file": "assets/dashboard_faculty_profile-B66fHXkp.js",
     "name": "dashboard_faculty_profile",
     "src": "resources/js/dashboard_faculty_profile.js",
+    "isEntry": true
+  },
+  "resources/js/dashboard_faculty_summary-reports.js": {
+    "file": "assets/dashboard_faculty_summary-reports-DRlun8Ba.js",
+    "name": "dashboard_faculty_summary-reports",
+    "src": "resources/js/dashboard_faculty_summary-reports.js",
+    "isEntry": true
+  },
+  "resources/js/dashboard_faculty_user-management.js": {
+    "file": "assets/dashboard_faculty_user-management-C61jrFPd.js",
+    "name": "dashboard_faculty_user-management",
+    "src": "resources/js/dashboard_faculty_user-management.js",
+    "isEntry": true
+  },
+  "resources/js/tailwind_admin_config.js": {
+    "file": "assets/tailwind_admin_config-Ba3Pq9rx.js",
+    "name": "tailwind_admin_config",
+    "src": "resources/js/tailwind_admin_config.js",
     "isEntry": true
   }
 }

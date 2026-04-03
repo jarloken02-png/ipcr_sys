@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/auth_login.css', 'resources/css/auth_verify-code.css', 'resources/js/auth_login.js', 'resources/js/auth_verify-code.js'])
 </head>
-<body>
+<body data-show-code-error="{{ $errors->has('code') ? '1' : '0' }}" data-start-resend-timer="{{ session('success') ? '1' : '0' }}">
     <div class="auth-card">
         <div class="auth-card__image">
             <img src="{{ asset('images/login_img.png') }}" alt="Illustration">
@@ -81,17 +81,5 @@
         </div>
     </div>
 
-    <script>
-        @if ($errors->has('code'))
-            document.addEventListener('DOMContentLoaded', function() {
-                if (typeof showCodeError === 'function') showCodeError();
-            });
-        @endif
-        @if (session('success'))
-            document.addEventListener('DOMContentLoaded', function() {
-                if (typeof startResendTimer === 'function') startResendTimer();
-            });
-        @endif
-    </script>
 </body>
 </html>

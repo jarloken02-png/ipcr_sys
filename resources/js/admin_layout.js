@@ -64,6 +64,11 @@ document.addEventListener('turbo:load', () => {
         });
     }
 
+    const openAddUserModalOnLoad = document.getElementById('openAddUserModalOnLoad');
+    if (openAddUserModalOnLoad && typeof window.openAddUserModal === 'function') {
+        window.openAddUserModal();
+    }
+
     // 3. Modals (Re-attach close listeners on outside click/escape)
     // Note: Global open/close functions are defined below and don't need re-definition
 });

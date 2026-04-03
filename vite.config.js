@@ -19,17 +19,27 @@ export default defineConfig({
                 'resources/css/dashboard_faculty_index.css',
                 'resources/css/dashboard_faculty_profile.css',
                 'resources/css/dashboard_faculty_my-ipcrs.css',
+                'resources/css/dashboard_faculty_summary-reports.css',
                 'resources/js/dashboard_faculty_index.js',
+                'resources/js/dashboard_faculty_index_page.js',
                 'resources/js/dashboard_faculty_profile.js',
                 'resources/js/dashboard_faculty_my-ipcrs.js',
+                'resources/js/dashboard_faculty_my-ipcrs_page.js',
+                'resources/js/dashboard_faculty_summary-reports.js',
+                'resources/js/dashboard_faculty_user-management.js',
+                'resources/js/dashboard_faculty_dean-ipcr-submission.js',
+                'resources/js/dashboard_director_index.js',
 
                 // Dashboard - Admin
                 // 'resources/css/dashboard_admin_index.css', // Consolidated
                 // 'resources/js/dashboard_admin_index.js', // Consolidated
+                'resources/js/dashboard_admin_index_page.js',
 
                 // Admin Layout (shared)
                 'resources/css/admin_layout.css',
                 'resources/js/admin_layout.js',
+                'resources/js/admin_layout_theme.js',
+                'resources/js/tailwind_admin_config.js',
 
                 // Admin Users
                 // 'resources/css/admin_users_index.css', // Consolidated
@@ -42,6 +52,11 @@ export default defineConfig({
                 // Admin Database
                 // 'resources/css/admin_database_index.css', // Consolidated
                 // 'resources/js/admin_database_index.js', // Consolidated
+
+                // Admin pages (inline JS extracted)
+                'resources/js/admin_activity_logs_index.js',
+                'resources/js/admin_notifications_index.js',
+                'resources/js/admin_role_management_index.js',
             ],
             refresh: true,
         }),

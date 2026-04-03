@@ -4,7 +4,8 @@ const uploadProgress = document.getElementById('uploadProgress');
 const progressBar = document.getElementById('progressBar');
 const uploadMessage = document.getElementById('uploadMessage');
 const uploadText = document.getElementById('uploadText');
-// userId is set in the blade template before this script loads
+const adminUsersEditConfig = document.getElementById('adminUsersEditConfig');
+const userId = adminUsersEditConfig ? adminUsersEditConfig.dataset.userId : null;
 
 // Crop functionality variables
 let cropper = null;

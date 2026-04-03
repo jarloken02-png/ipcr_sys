@@ -101,24 +101,5 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const temporarySuccess = document.querySelector('.temporary-success-message[data-autohide="true"]');
-
-            if (!temporarySuccess) {
-                return;
-            }
-
-            window.setTimeout(function () {
-                temporarySuccess.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
-                temporarySuccess.style.opacity = '0';
-                temporarySuccess.style.transform = 'translateY(-4px)';
-
-                window.setTimeout(function () {
-                    temporarySuccess.remove();
-                }, 350);
-            }, 2500);
-        });
-    </script>
 </body>
 </html>

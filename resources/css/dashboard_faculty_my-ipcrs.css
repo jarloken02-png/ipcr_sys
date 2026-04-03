@@ -186,3 +186,78 @@
     background-color: #f3f4f6;
     border-left: 3px solid #6b7280;
 }
+
+@keyframes scale-in {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+}
+
+/* Text Formatting Toolbar */
+.format-toolbar {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 4px;
+    background: #f9fafb;
+    padding: 4px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.format-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 4px;
+}
+
+.format-btn:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.format-btn.active {
+    background: #3b82f6;
+    border-color: #2563eb;
+    color: white;
+}
+
+/* Contenteditable field styling */
+.editable-field {
+    min-height: 80px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    outline: none;
+    transition: all 0.15s;
+}
+
+.editable-field:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.editable-field:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+}

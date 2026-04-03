@@ -17,6 +17,20 @@ window.togglePasswordVisibility = function () {
 document.addEventListener('DOMContentLoaded', () => {
     const bgImage = document.querySelector('.auth-card__image');
     const authForm = document.querySelector('.auth-card__form');
+
+    const temporarySuccess = document.querySelector('.temporary-success-message[data-autohide="true"]');
+    if (temporarySuccess) {
+        window.setTimeout(() => {
+            temporarySuccess.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+            temporarySuccess.style.opacity = '0';
+            temporarySuccess.style.transform = 'translateY(-4px)';
+
+            window.setTimeout(() => {
+                temporarySuccess.remove();
+            }, 350);
+        }, 2500);
+    }
+
     if (bgImage) {
         window.addEventListener('scroll', () => {
             if (window.innerWidth <= 900) {

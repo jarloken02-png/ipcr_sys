@@ -1005,3 +1005,9 @@ function showModalMessage(message, type) {
         messageDiv.className = 'text-xs mt-1';
     }, 3000);
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.body) {
+        document.body.style.visibility = 'visible';
+    }
+});

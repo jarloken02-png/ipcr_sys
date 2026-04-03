@@ -128,3 +128,16 @@ window.startResendTimer = function() {
         }
     }, 1000);
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+    const body = document.body;
+    if (!body) return;
+
+    if (body.dataset.showCodeError === '1' && typeof window.showCodeError === 'function') {
+        window.showCodeError();
+    }
+
+    if (body.dataset.startResendTimer === '1' && typeof window.startResendTimer === 'function') {
+        window.startResendTimer();
+    }
+});

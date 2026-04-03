@@ -723,16 +723,6 @@
         </div>
     </div>
 
-    <style>
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-    </style>
-
     <!-- Edit Profile Modal -->
     <div id="editProfileModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full animate-scale-in max-h-[90vh] overflow-y-auto scrollbar-hide">
@@ -962,6 +952,5 @@
         </div>
     </div>
 
-<script>document.body.style.visibility = 'visible';</script>
 </body>
 </html>
