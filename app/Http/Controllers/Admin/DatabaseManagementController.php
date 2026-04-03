@@ -127,54 +127,32 @@ class DatabaseManagementController extends Controller
                     ->with('error', 'Backup file not found.');
             }
 
-            $dbName = config('database.connections.mysql.database');
-            $dbUser = config('database.connections.mysql.username');
-            $dbPass = config('database.connections.mysql.password');
-            $dbHost = config('database.connections.mysql.host');
-            $dbPort = config('database.connections.mysql.port');
-
-            try {
-                // Preferred path: use mysql/mariadb CLI client if available.
-                $mysqlPath = $this->findMysql();
-                $command = [
-                    $mysqlPath,
-                    '--host=' . $dbHost,
-                    '--port=' . $dbPort,
-                    '--user=' . $dbUser,
-                    $dbName,
-                ];
-
-                // Inherit full OS environment and append MYSQL_PWD.
-                // On Windows, dropping core env vars can break TCP initialization in mysql client.
-                $env = getenv();
-                if (!is_array($env)) {
-                    $env = [];
-                }
-                if (!empty($dbPass)) {
-                    $env['MYSQL_PWD'] = $dbPass;
-                }
-
-                $process = new Process($command, null, $env);
-                $process->setTimeout(600);
-                $process->setInput(file_get_contents($filePath));
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    return redirect()->route('admin.database.index')
-                        ->with('error', 'Restore failed. Error: ' . $this->formatProcessError(
-                            $process,
-                            'The database restore command failed.'
-                        ));
-                }
-            } catch (\RuntimeException $binaryException) {
-                // Fallback for containers where mysql/mariadb client is not present.
-                $this->restoreUsingSqlScript($filePath);
+            $sql = file_get_contents($filePath);
+            if ($sql === false) {
+                return redirect()->route('admin.database.index')
+                    ->with('error', 'Restore failed: Unable to read SQL backup file.');
             }
+
+            $statements = $this->parseSqlStatements($sql);
+            $filteredStatements = $this->filterRestorableStatements($statements);
+            $skippedCount = count($statements) - count($filteredStatements);
+
+            if (empty($filteredStatements)) {
+                return redirect()->route('admin.database.index')
+                    ->with('error', 'Restore failed: The selected SQL file has no executable statements after safety filtering.');
+            }
+
+            $this->restoreUsingSqlStatements($filteredStatements);
 
             ActivityLogService::log('backup_restored', 'Restored database from backup: ' . $filename);
 
+            $message = "Database restored successfully from: {$filename}";
+            if ($skippedCount > 0) {
+                $message .= " ({$skippedCount} session/cache statements were skipped to keep active logins.)";
+            }
+
             return redirect()->route('admin.database.index')
-                ->with('success', "Database restored successfully from: {$filename}");
+                ->with('success', $message);
 
         } catch (\Exception $e) {
             return redirect()->route('admin.database.index')
@@ -183,25 +161,10 @@ class DatabaseManagementController extends Controller
     }
 
     /**
-     * Restore SQL script without mysql binary by executing statements through PDO.
+     * Restore SQL statements through PDO.
      */
-    private function restoreUsingSqlScript(string $filePath): void
+    private function restoreUsingSqlStatements(array $statements): void
     {
-        if (!is_file($filePath)) {
-            throw new \RuntimeException('SQL file not found for restore.');
-        }
-
-        $sql = file_get_contents($filePath);
-        if ($sql === false) {
-            throw new \RuntimeException('Unable to read SQL file for restore.');
-        }
-
-        $statements = $this->parseSqlStatements($sql);
-
-        if (empty($statements)) {
-            throw new \RuntimeException('No executable SQL statements were found in the selected file.');
-        }
-
         $connection = DB::connection('mysql');
         $connection->unprepared('SET FOREIGN_KEY_CHECKS=0;');
 
@@ -212,6 +175,64 @@ class DatabaseManagementController extends Controller
         } finally {
             $connection->unprepared('SET FOREIGN_KEY_CHECKS=1;');
         }
+    }
+
+    /**
+     * Remove statements that target volatile runtime tables so active logins are preserved.
+     */
+    private function filterRestorableStatements(array $statements): array
+    {
+        $excludedTables = $this->getRestoreExcludedTables();
+
+        return array_values(array_filter($statements, function ($statement) use ($excludedTables) {
+            $sql = trim((string) $statement);
+
+            if ($sql === '') {
+                return false;
+            }
+
+            foreach ($excludedTables as $table) {
+                if ($table !== '' && $this->statementReferencesTable($sql, $table)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
+    }
+
+    /**
+     * Resolve restore-excluded tables from runtime config.
+     */
+    private function getRestoreExcludedTables(): array
+    {
+        $candidates = [
+            config('session.table', 'sessions'),
+            config('cache.stores.database.table', 'cache'),
+            config('cache.stores.database.lock_table', 'cache_locks'),
+        ];
+
+        $normalized = array_map(function ($table) {
+            return strtolower(trim((string) $table));
+        }, $candidates);
+
+        return array_values(array_unique(array_filter($normalized)));
+    }
+
+    /**
+     * Detect whether a SQL statement targets a given table name.
+     */
+    private function statementReferencesTable(string $statement, string $table): bool
+    {
+        $escaped = preg_quote($table, '/');
+
+        $pattern = '/\b(?:from|into|update|join|table|truncate|alter\s+table|create\s+table|drop\s+table|delete\s+from|replace\s+into|lock\s+tables)\s+`?(?:[a-zA-Z0-9_]+`?\.)?`?' . $escaped . '`?\b/i';
+
+        if (preg_match($pattern, $statement)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
