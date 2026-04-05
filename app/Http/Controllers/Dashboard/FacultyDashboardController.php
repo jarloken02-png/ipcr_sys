@@ -3,25 +3,26 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Models\IpcrTemplate;
-use App\Models\IpcrSubmission;
-use App\Models\IpcrSavedCopy;
-use App\Models\OpcrSavedCopy;
-use App\Models\UserPhoto;
-use App\Models\SupportingDocument;
+use App\Models\ActivityLog;
 use App\Models\AdminNotification;
+use App\Models\DeanCalibration;
+use App\Models\Department;
+use App\Models\IpcrSavedCopy;
+use App\Models\IpcrSubmission;
+use App\Models\IpcrTemplate;
+use App\Models\OpcrSavedCopy;
+use App\Models\SupportingDocument;
 use App\Models\UpcomingDeadline;
 use App\Models\User;
-use App\Models\Department;
-use App\Models\ActivityLog;
+use App\Models\UserPhoto;
+use App\Services\ActivityLogService;
 use App\Services\PhotoService;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
-use App\Services\ActivityLogService;
-use App\Models\DeanCalibration;
+use Illuminate\View\View;
 
 class FacultyDashboardController extends Controller
 {
@@ -36,7 +37,7 @@ class FacultyDashboardController extends Controller
             ->orderBy('submitted_at', 'desc')
             ->first();
 
-        if (!$activeSubmission) {
+        if (! $activeSubmission) {
             $activeSubmission = IpcrSubmission::where('user_id', auth()->id())
                 ->whereNotNull('submitted_at')
                 ->orderBy('submitted_at', 'desc')
@@ -69,9 +70,9 @@ class FacultyDashboardController extends Controller
         if ($activeSubmission && $activeSubmission->table_body_html) {
             try {
                 $html = $activeSubmission->table_body_html;
-                $dom = new \DOMDocument();
+                $dom = new \DOMDocument;
                 libxml_use_internal_errors(true);
-                $dom->loadHTML('<meta charset="utf-8"><table><tbody>' . $html . '</tbody></table>');
+                $dom->loadHTML('<meta charset="utf-8"><table><tbody>'.$html.'</tbody></table>');
                 libxml_clear_errors();
 
                 $rows = $dom->getElementsByTagName('tr');
@@ -85,7 +86,7 @@ class FacultyDashboardController extends Controller
                 $pendingSubHeader = null; // Label from a gray sub-header row, stamped onto next data row
 
                 // Also count SOs from HTML if so_count_json was empty
-                $countFromHtml = !($activeSubmission->so_count_json);
+                $countFromHtml = ! ($activeSubmission->so_count_json);
 
                 $sectionMap = [
                     'green' => 'strategic_objectives',
@@ -94,7 +95,9 @@ class FacultyDashboardController extends Controller
                 ];
 
                 $saveSo = function () use (&$soPerformanceData, &$currentSoLabel, &$currentSoName, &$currentRatings, &$currentSection, &$currentRowCount, &$currentFilledCount, &$currentRows, &$strategicObjectivesAccomplished, &$coreFunctionsAccomplished, &$supportFunctionsAccomplished) {
-                    if (!$currentSoLabel) return;
+                    if (! $currentSoLabel) {
+                        return;
+                    }
 
                     $avg = count($currentRatings) > 0
                         ? round(array_sum($currentRatings) / count($currentRatings), 2)
@@ -104,18 +107,22 @@ class FacultyDashboardController extends Controller
                     $isAccomplished = ($currentRowCount > 0 && $currentFilledCount === $currentRowCount);
 
                     $soPerformanceData[] = [
-                        'label'     => $currentSoLabel,
-                        'name'      => $currentSoName,
-                        'average'   => $avg,
-                        'section'   => $currentSection,
-                        'rows'      => $currentRows,
+                        'label' => $currentSoLabel,
+                        'name' => $currentSoName,
+                        'average' => $avg,
+                        'section' => $currentSection,
+                        'rows' => $currentRows,
                         'documents' => [],
                     ];
 
                     if ($isAccomplished) {
-                        if ($currentSection === 'strategic_objectives') $strategicObjectivesAccomplished++;
-                        elseif ($currentSection === 'core_functions') $coreFunctionsAccomplished++;
-                        elseif ($currentSection === 'support_functions') $supportFunctionsAccomplished++;
+                        if ($currentSection === 'strategic_objectives') {
+                            $strategicObjectivesAccomplished++;
+                        } elseif ($currentSection === 'core_functions') {
+                            $coreFunctionsAccomplished++;
+                        } elseif ($currentSection === 'support_functions') {
+                            $supportFunctionsAccomplished++;
+                        }
                     }
 
                     $currentSoLabel = null;
@@ -140,7 +147,9 @@ class FacultyDashboardController extends Controller
                             break;
                         }
                     }
-                    if ($isSectionHeader) continue;
+                    if ($isSectionHeader) {
+                        continue;
+                    }
 
                     // Gray header (sub-section like "Preparation and Submission of:")
                     // Store its label to be stamped onto the next data row as a visual divider
@@ -153,10 +162,11 @@ class FacultyDashboardController extends Controller
                                 break;
                             }
                         }
-                        if (!$grayLabel) {
+                        if (! $grayLabel) {
                             $grayLabel = trim($row->textContent);
                         }
                         $pendingSubHeader = $grayLabel ?: null;
+
                         continue;
                     }
 
@@ -167,9 +177,13 @@ class FacultyDashboardController extends Controller
 
                         // Count SOs from HTML fallback
                         if ($countFromHtml && $currentSection) {
-                            if ($currentSection === 'strategic_objectives') $strategicObjectivesCount++;
-                            elseif ($currentSection === 'core_functions') $coreFunctionsCount++;
-                            elseif ($currentSection === 'support_functions') $supportFunctionsCount++;
+                            if ($currentSection === 'strategic_objectives') {
+                                $strategicObjectivesCount++;
+                            } elseif ($currentSection === 'core_functions') {
+                                $coreFunctionsCount++;
+                            } elseif ($currentSection === 'support_functions') {
+                                $supportFunctionsCount++;
+                            }
                         }
 
                         // Extract SO label and description
@@ -194,6 +208,7 @@ class FacultyDashboardController extends Controller
                         $currentSoName = $soDesc
                             ? strtoupper("$currentSoLabel. $soDesc")
                             : strtoupper($currentSoLabel);
+
                         continue;
                     }
 
@@ -205,14 +220,19 @@ class FacultyDashboardController extends Controller
 
                             $getCellText = function (\DOMElement $cell): string {
                                 $tas = $cell->getElementsByTagName('textarea');
-                                if ($tas->length > 0) return trim($tas->item(0)->textContent);
+                                if ($tas->length > 0) {
+                                    return trim($tas->item(0)->textContent);
+                                }
                                 $ins = $cell->getElementsByTagName('input');
-                                if ($ins->length > 0) return trim($ins->item(0)->getAttribute('value'));
+                                if ($ins->length > 0) {
+                                    return trim($ins->item(0)->getAttribute('value'));
+                                }
+
                                 return trim($cell->textContent);
                             };
 
-                            $mfo            = $cells->length > 0 ? $getCellText($cells->item(0)) : '';
-                            $successInd     = $cells->length > 1 ? $getCellText($cells->item(1)) : '';
+                            $mfo = $cells->length > 0 ? $getCellText($cells->item(0)) : '';
+                            $successInd = $cells->length > 1 ? $getCellText($cells->item(1)) : '';
                             $accomplishment = $cells->length > 2 ? $getCellText($cells->item(2)) : '';
                             $q = $e = $t = $a = '';
 
@@ -226,17 +246,19 @@ class FacultyDashboardController extends Controller
                                 }
                             }
 
-                            if ($accomplishment !== '') $currentFilledCount++;
+                            if ($accomplishment !== '') {
+                                $currentFilledCount++;
+                            }
 
                             $currentRows[] = [
-                                'mfo'               => $mfo,
+                                'mfo' => $mfo,
                                 'success_indicator' => $successInd,
-                                'accomplishment'    => $accomplishment,
+                                'accomplishment' => $accomplishment,
                                 'q' => $q,
                                 'e' => $e,
                                 't' => $t,
                                 'a' => $a,
-                                'sub_header'        => $pendingSubHeader, // null for most rows
+                                'sub_header' => $pendingSubHeader, // null for most rows
                             ];
                             $pendingSubHeader = null; // Only stamp on the first row after the header
                         }
@@ -258,30 +280,45 @@ class FacultyDashboardController extends Controller
                     $sec = $soEntry['section'] ?? null;
                     if ($sec === 'strategic_objectives') {
                         $strategicObjectivesCount++;
-                        if (!empty($soEntry['rows'])) {
+                        if (! empty($soEntry['rows'])) {
                             $allFilled = true;
                             foreach ($soEntry['rows'] as $r) {
-                                if (trim($r['accomplishment'] ?? '') === '') { $allFilled = false; break; }
+                                if (trim($r['accomplishment'] ?? '') === '') {
+                                    $allFilled = false;
+                                    break;
+                                }
                             }
-                            if ($allFilled) $strategicObjectivesAccomplished++;
+                            if ($allFilled) {
+                                $strategicObjectivesAccomplished++;
+                            }
                         }
                     } elseif ($sec === 'core_functions') {
                         $coreFunctionsCount++;
-                        if (!empty($soEntry['rows'])) {
+                        if (! empty($soEntry['rows'])) {
                             $allFilled = true;
                             foreach ($soEntry['rows'] as $r) {
-                                if (trim($r['accomplishment'] ?? '') === '') { $allFilled = false; break; }
+                                if (trim($r['accomplishment'] ?? '') === '') {
+                                    $allFilled = false;
+                                    break;
+                                }
                             }
-                            if ($allFilled) $coreFunctionsAccomplished++;
+                            if ($allFilled) {
+                                $coreFunctionsAccomplished++;
+                            }
                         }
                     } elseif ($sec === 'support_functions') {
                         $supportFunctionsCount++;
-                        if (!empty($soEntry['rows'])) {
+                        if (! empty($soEntry['rows'])) {
                             $allFilled = true;
                             foreach ($soEntry['rows'] as $r) {
-                                if (trim($r['accomplishment'] ?? '') === '') { $allFilled = false; break; }
+                                if (trim($r['accomplishment'] ?? '') === '') {
+                                    $allFilled = false;
+                                    break;
+                                }
                             }
-                            if ($allFilled) $supportFunctionsAccomplished++;
+                            if ($allFilled) {
+                                $supportFunctionsAccomplished++;
+                            }
                         }
                     }
                 }
@@ -289,24 +326,26 @@ class FacultyDashboardController extends Controller
                 // Attach supporting documents per SO label
                 // Query across both template and submission types (same logic as SupportingDocumentController::index)
                 // so documents uploaded on a draft or template are visible on the active submission dashboard
-                if (!empty($soPerformanceData)) {
+                if (! empty($soPerformanceData)) {
                     $docsByLabel = SupportingDocument::where('user_id', auth()->id())
                         ->whereIn('documentable_type', ['ipcr_template', 'ipcr_submission'])
                         ->orderBy('created_at', 'desc')
                         ->get(['id', 'so_label', 'original_name', 'path', 'mime_type', 'file_size'])
-                        ->unique('path') // Deduplicate same Cloudinary file copied between template/submission
+                        ->unique(function (SupportingDocument $document) {
+                            return $document->storage_key ?: $document->path;
+                        }) // Deduplicate same file copied between template/submission
                         ->groupBy('so_label');
 
                     foreach ($soPerformanceData as &$soEntry) {
                         $lbl = $soEntry['label'];
                         $soEntry['documents'] = $docsByLabel->has($lbl)
                             ? $docsByLabel[$lbl]->map(fn ($d) => [
-                                'id'             => $d->id,
-                                'original_name'  => $d->original_name,
-                                'path'           => $d->path,
-                                'mime_type'      => $d->mime_type,
-                                'file_size_human'=> $d->file_size_human,
-                                'download_url'   => route('faculty.supporting-documents.download', $d->id),
+                                'id' => $d->id,
+                                'original_name' => $d->original_name,
+                                'path' => $d->file_url,
+                                'mime_type' => $d->mime_type,
+                                'file_size_human' => $d->file_size_human,
+                                'download_url' => route('faculty.supporting-documents.download', $d->id),
                             ])->values()->toArray()
                             : [];
                     }
@@ -314,7 +353,7 @@ class FacultyDashboardController extends Controller
                 }
 
                 // Load calibration actual ratings from dean calibrations
-                if ($activeSubmission && !empty($soPerformanceData)) {
+                if ($activeSubmission && ! empty($soPerformanceData)) {
                     $calibration = DeanCalibration::where('ipcr_submission_id', $activeSubmission->id)
                         ->where('status', 'calibrated')
                         ->orderByDesc('updated_at')
@@ -329,7 +368,9 @@ class FacultyDashboardController extends Controller
                                 if (isset($calData[$calIndex])) {
                                     $cd = $calData[$calIndex];
                                     $a = isset($cd['a']) ? (float) $cd['a'] : 0;
-                                    if ($a > 0) $soCalRatings[] = $a;
+                                    if ($a > 0) {
+                                        $soCalRatings[] = $a;
+                                    }
                                 }
                                 $calIndex++;
                             }
@@ -362,31 +403,31 @@ class FacultyDashboardController extends Controller
 
         // Format the text display (e.g., "0/3" where 0 is accomplished and 3 is total SOs)
         // Show "N/A" when total is 0, otherwise show "accomplished/total"
-        $strategicObjectivesText = $strategicObjectivesCount > 0 
-            ? "$strategicObjectivesAccomplished/$strategicObjectivesCount" 
-            : "N/A";
-        $coreFunctionsText = $coreFunctionsCount > 0 
-            ? "$coreFunctionsAccomplished/$coreFunctionsCount" 
-            : "N/A";
-        $supportFunctionsText = $supportFunctionsCount > 0 
-            ? "$supportFunctionsAccomplished/$supportFunctionsCount" 
-            : "N/A";
+        $strategicObjectivesText = $strategicObjectivesCount > 0
+            ? "$strategicObjectivesAccomplished/$strategicObjectivesCount"
+            : 'N/A';
+        $coreFunctionsText = $coreFunctionsCount > 0
+            ? "$coreFunctionsAccomplished/$coreFunctionsCount"
+            : 'N/A';
+        $supportFunctionsText = $supportFunctionsCount > 0
+            ? "$supportFunctionsAccomplished/$supportFunctionsCount"
+            : 'N/A';
 
         // Calculate percentages based on accomplished/total
-        $strategicObjectivesPercent = $strategicObjectivesCount > 0 
-            ? round(($strategicObjectivesAccomplished / $strategicObjectivesCount) * 100) . "%" 
-            : "0%";
-        $coreFunctionsPercent = $coreFunctionsCount > 0 
-            ? round(($coreFunctionsAccomplished / $coreFunctionsCount) * 100) . "%" 
-            : "0%";
-        $supportFunctionsPercent = $supportFunctionsCount > 0 
-            ? round(($supportFunctionsAccomplished / $supportFunctionsCount) * 100) . "%" 
-            : "0%";
+        $strategicObjectivesPercent = $strategicObjectivesCount > 0
+            ? round(($strategicObjectivesAccomplished / $strategicObjectivesCount) * 100).'%'
+            : '0%';
+        $coreFunctionsPercent = $coreFunctionsCount > 0
+            ? round(($coreFunctionsAccomplished / $coreFunctionsCount) * 100).'%'
+            : '0%';
+        $supportFunctionsPercent = $supportFunctionsCount > 0
+            ? round(($supportFunctionsAccomplished / $supportFunctionsCount) * 100).'%'
+            : '0%';
 
         // Dummy IPCR Progress values
-        $ipcrAccomplishedText = "0/0";
+        $ipcrAccomplishedText = '0/0';
         $ipcrPercentageValue = 0;
-        $ipcrPercentageText = "0%";
+        $ipcrPercentageText = '0%';
 
         // Fetch notifications and deadlines from database
         $userRole = auth()->user()->getPrimaryRole() ?? 'faculty';
@@ -434,7 +475,14 @@ class FacultyDashboardController extends Controller
         $departmentProgress = collect();
         $topPerformers = collect();
         $recentActivities = collect();
-        $directorSubmissionTrendData = [0, 0, 0, 0, 0, 0];
+        $trendWindowStart = now()->startOfMonth()->subMonths(5);
+        $trendMonths = collect(range(0, 5))->map(fn ($offset) => $trendWindowStart->copy()->addMonths($offset));
+        $directorSubmissionTrendLabels = $trendMonths
+            ->map(fn ($month) => $month->format('M'))
+            ->values()
+            ->all();
+        $directorTrendPeriodLabel = $trendMonths->first()->format('M Y').' - '.$trendMonths->last()->format('M Y');
+        $directorSubmissionTrendData = array_fill(0, count($directorSubmissionTrendLabels), 0);
 
         if ($isDirectorDashboard) {
             $roleScope = fn ($q) => $q->whereIn('role', ['faculty', 'dean']);
@@ -459,7 +507,7 @@ class FacultyDashboardController extends Controller
                 ->whereIn('user_id', $facultyUserIds);
 
             if ($latestCycle) {
-                $latestCycleLabel = trim(($latestCycle->school_year ?? '') . ' • ' . ($latestCycle->semester ?? ''));
+                $latestCycleLabel = trim(($latestCycle->school_year ?? '').' • '.($latestCycle->semester ?? ''));
                 $submissionCycleQuery
                     ->where('school_year', $latestCycle->school_year)
                     ->where('semester', $latestCycle->semester);
@@ -513,14 +561,22 @@ class FacultyDashboardController extends Controller
                 'pendingReviews' => $pendingReviews,
             ];
 
-            // Submission activity trend aligned to Month 1..6 buckets
-            $trendByMonth = (clone $submissionCycleQuery)
-                ->selectRaw('CASE WHEN MONTH(submitted_at) BETWEEN 1 AND 6 THEN MONTH(submitted_at) ELSE MONTH(submitted_at) - 6 END AS month_index, COUNT(*) AS total')
-                ->groupBy('month_index')
-                ->pluck('total', 'month_index');
+            // Campus submission trend: rolling last 6 calendar months (including current month)
+            $trendRows = IpcrSubmission::query()
+                ->whereNotNull('submitted_at')
+                ->whereIn('user_id', $facultyUserIds)
+                ->whereBetween('submitted_at', [$trendWindowStart, now()->endOfMonth()])
+                ->selectRaw('YEAR(submitted_at) as year_num, MONTH(submitted_at) as month_num, COUNT(*) as total')
+                ->groupBy('year_num', 'month_num')
+                ->get()
+                ->keyBy(fn ($row) => sprintf('%04d-%02d', (int) $row->year_num, (int) $row->month_num));
 
-            $directorSubmissionTrendData = collect(range(1, 6))
-                ->map(fn ($monthIndex) => (int) ($trendByMonth[$monthIndex] ?? 0))
+            $directorSubmissionTrendData = $trendMonths
+                ->map(function ($month) use ($trendRows) {
+                    $monthKey = $month->format('Y-m');
+
+                    return (int) ($trendRows[$monthKey]->total ?? 0);
+                })
                 ->values()
                 ->all();
 
@@ -572,19 +628,97 @@ class FacultyDashboardController extends Controller
                 ->limit(5)
                 ->get();
 
-            $recentActivities = ActivityLog::query()
-                ->with('user:id,name,department_id')
+            $recentActivityLogs = ActivityLog::query()
+                ->with(['user:id,name,department_id', 'user.department:id,code,name'])
                 ->whereHas('user', function ($q) use ($facultyUserIds) {
                     $q->whereIn('id', $facultyUserIds);
                 })
-                ->where(function ($q) {
-                    $q->where('action', 'like', 'ipcr_%')
-                        ->orWhere('action', 'like', 'opcr_%')
-                        ->orWhere('action', 'like', 'dean_reviewed_%');
-                })
+                ->whereIn('action', [
+                    'ipcr_submitted',
+                    'ipcr_submission_updated',
+                    'dean_reviewed_faculty_submission',
+                    'dean_reviewed_dean_submission',
+                    'dean_calibration_calibrated',
+                    'dean_calibration_draft',
+                ])
                 ->latest('created_at')
-                ->limit(10)
-                ->get();
+                ->limit(12)
+                ->get()
+                ->map(function (ActivityLog $activity) {
+                    $actor = $activity->user?->name ?? 'A faculty member';
+                    $departmentCode = $activity->user?->department?->code;
+                    $context = $departmentCode ? $departmentCode.' Department' : 'Campus';
+                    $actionLabel = Str::headline(str_replace('_', ' ', (string) $activity->action));
+
+                    $title = match ($activity->action) {
+                        'ipcr_submitted' => $actor.' submitted an IPCR',
+                        'ipcr_submission_updated' => $actor.' updated an IPCR submission',
+                        'dean_reviewed_faculty_submission' => $actor.' reviewed a faculty IPCR',
+                        'dean_reviewed_dean_submission' => $actor.' reviewed a dean IPCR',
+                        'dean_calibration_calibrated' => $actor.' finalized a calibration',
+                        'dean_calibration_draft' => $actor.' saved a calibration draft',
+                        default => $actor.' recorded '.$actionLabel,
+                    };
+
+                    $tone = match ($activity->action) {
+                        'ipcr_submitted', 'ipcr_submission_updated' => 'blue',
+                        'dean_reviewed_faculty_submission', 'dean_reviewed_dean_submission' => 'amber',
+                        'dean_calibration_calibrated' => 'green',
+                        'dean_calibration_draft' => 'yellow',
+                        default => 'slate',
+                    };
+
+                    return [
+                        'source' => 'activity',
+                        'tone' => $tone,
+                        'title' => $title,
+                        'context' => $context,
+                        'description' => Str::limit((string) ($activity->description ?? ''), 130),
+                        'timestamp' => $activity->created_at,
+                        'time' => $activity->created_at?->diffForHumans() ?? 'just now',
+                        'action_label' => $actionLabel,
+                    ];
+                });
+
+            $recentNotificationItems = AdminNotification::active()
+                ->forAudience('director')
+                ->orderByDesc('published_at')
+                ->orderByDesc('created_at')
+                ->limit(6)
+                ->get()
+                ->map(function (AdminNotification $notification) {
+                    $timestamp = $notification->published_at ?? $notification->created_at;
+                    $tone = match ($notification->type) {
+                        'success' => 'green',
+                        'warning' => 'yellow',
+                        'danger' => 'red',
+                        default => 'blue',
+                    };
+
+                    return [
+                        'source' => 'notification',
+                        'tone' => $tone,
+                        'title' => $notification->title,
+                        'context' => 'System notification',
+                        'description' => Str::limit((string) $notification->message, 130),
+                        'timestamp' => $timestamp,
+                        'time' => $timestamp?->diffForHumans() ?? 'just now',
+                        'action_label' => 'Notification',
+                    ];
+                });
+
+            $recentActivities = $recentActivityLogs
+                ->merge($recentNotificationItems)
+                ->sortByDesc(function (array $item) {
+                    return optional($item['timestamp'])->getTimestamp() ?? 0;
+                })
+                ->take(8)
+                ->values()
+                ->map(function (array $item) {
+                    unset($item['timestamp']);
+
+                    return $item;
+                });
         }
 
         return view('dashboard.faculty.index', compact(
@@ -595,6 +729,8 @@ class FacultyDashboardController extends Controller
             'topPerformers',
             'recentActivities',
             'directorSubmissionTrendData',
+            'directorSubmissionTrendLabels',
+            'directorTrendPeriodLabel',
             'strategicObjectivesText',
             'strategicObjectivesPercent',
             'coreFunctionsText',
@@ -621,7 +757,7 @@ class FacultyDashboardController extends Controller
         $templates = IpcrTemplate::where('user_id', auth()->id())
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         $submissions = IpcrSubmission::where('user_id', auth()->id())
             ->whereNotNull('submitted_at')
             ->orderBy('submitted_at', 'desc')
@@ -656,7 +792,7 @@ class FacultyDashboardController extends Controller
             ->pluck('notification_id')
             ->toArray();
         $unreadCount = $notifications->whereNotIn('id', $readNotifIds)->count();
-            
+
         return view('dashboard.faculty.my-ipcrs', compact(
             'templates', 'submissions', 'opcrSubmissions',
             'savedIpcrs', 'savedOpcrs',
@@ -672,7 +808,7 @@ class FacultyDashboardController extends Controller
         $profileCompleteness = $user->getProfileCompleteness();
         $completenessColor = $user->getCompletenessColor();
         $photoCount = $user->photos()->count();
-        
+
         $userRole = auth()->user()->getPrimaryRole() ?? 'faculty';
         $notifications = AdminNotification::active()
             ->forAudience($userRole)
@@ -722,23 +858,23 @@ class FacultyDashboardController extends Controller
         $user = auth()->user();
 
         // Check if current password is correct
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             return response()->json([
                 'errors' => [
-                    'current_password' => ['The current password is incorrect.']
-                ]
+                    'current_password' => ['The current password is incorrect.'],
+                ],
             ], 422);
         }
 
         // Update password
         $user->update([
-            'password' => Hash::make($request->new_password)
+            'password' => Hash::make($request->new_password),
         ]);
 
         ActivityLogService::log('password_changed', 'Changed own password', $user);
 
         return response()->json([
-            'message' => 'Password updated successfully!'
+            'message' => 'Password updated successfully!',
         ]);
     }
 
@@ -748,8 +884,8 @@ class FacultyDashboardController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email,' . $user->id],
-            'username' => ['required', 'string', 'max:255', 'unique:users,username,' . $user->id],
+            'email' => ['required', 'email', 'unique:users,email,'.$user->id],
+            'username' => ['required', 'string', 'max:255', 'unique:users,username,'.$user->id],
             'phone' => ['nullable', 'string', 'max:20'],
             'department_id' => ['nullable', 'exists:departments,id'],
             'designation_id' => ['nullable', 'exists:designations,id'],
@@ -782,7 +918,7 @@ class FacultyDashboardController extends Controller
                 ? 'Profile updated. Please verify your new email address.'
                 : 'Profile updated successfully!',
             'email_changed' => $emailChanged,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 
@@ -802,12 +938,12 @@ class FacultyDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Photo uploaded successfully!'
+                'message' => 'Photo uploaded successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to upload photo: ' . $e->getMessage()
+                'message' => 'Failed to upload photo: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -819,19 +955,19 @@ class FacultyDashboardController extends Controller
             return [
                 'id' => $photo->id,
                 'url' => $photo->photo_url,
-                'is_profile' => $photo->is_profile_photo
+                'is_profile' => $photo->is_profile_photo,
             ];
         });
 
         return response()->json([
-            'photos' => $photos
+            'photos' => $photos,
         ]);
     }
 
     public function setProfilePhoto(Request $request)
     {
         $request->validate([
-            'photo_id' => 'required|integer'
+            'photo_id' => 'required|integer',
         ]);
 
         $user = auth()->user();
@@ -841,10 +977,10 @@ class FacultyDashboardController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$photo) {
+        if (! $photo) {
             return response()->json([
                 'success' => false,
-                'message' => 'Photo not found or does not belong to you.'
+                'message' => 'Photo not found or does not belong to you.',
             ], 403);
         }
 
@@ -855,12 +991,12 @@ class FacultyDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Profile photo updated successfully!'
+                'message' => 'Profile photo updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to set profile photo: ' . $e->getMessage()
+                'message' => 'Failed to set profile photo: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -879,12 +1015,12 @@ class FacultyDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Photo deleted successfully!'
+                'message' => 'Photo deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete photo: ' . $e->getMessage()
+                'message' => 'Failed to delete photo: '.$e->getMessage(),
             ], 500);
         }
     }

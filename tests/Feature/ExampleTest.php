@@ -1,7 +1,7 @@
 <?php
 
-test('the application returns a successful response', function () {
+test('the application root is not found', function () {
     $response = $this->get('/');
 
-    $response->assertStatus(200);
+    $response->assertNotFound();
 });

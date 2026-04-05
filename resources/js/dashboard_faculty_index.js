@@ -24,13 +24,19 @@ document.addEventListener('click', function (e) {
     }
 });
 
-// Director: Submission Activity Trends (Month 1..6)
+// Director: Submission Activity Trends (rolling 6-month window)
 const directorTrendCanvas = document.getElementById('directorSubmissionTrendChart');
 if (directorTrendCanvas && typeof Chart !== 'undefined') {
     const directorTrendCtx = directorTrendCanvas.getContext('2d');
+    const trendLabels = Array.isArray(window.directorSubmissionTrendLabels)
+        ? window.directorSubmissionTrendLabels
+        : ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
     const trendData = Array.isArray(window.directorSubmissionTrendData)
         ? window.directorSubmissionTrendData.map(v => Number(v) || 0)
-        : [0, 0, 0, 0, 0, 0];
+        : trendLabels.map(() => 0);
+    const trendPeriodLabel = typeof window.directorTrendPeriodLabel === 'string'
+        ? window.directorTrendPeriodLabel
+        : 'Last 6 months';
 
     const trendGradient = directorTrendCtx.createLinearGradient(0, 0, 0, 280);
     trendGradient.addColorStop(0, 'rgba(37, 99, 235, 0.25)');
@@ -39,9 +45,9 @@ if (directorTrendCanvas && typeof Chart !== 'undefined') {
     new Chart(directorTrendCtx, {
         type: 'line',
         data: {
-            labels: ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6'],
+            labels: trendLabels,
             datasets: [{
-                label: 'Daily Submissions',
+                label: 'Submitted IPCRs',
                 data: trendData,
                 borderColor: '#2563EB',
                 backgroundColor: trendGradient,
@@ -76,8 +82,16 @@ if (directorTrendCanvas && typeof Chart !== 'undefined') {
                 },
                 tooltip: {
                     callbacks: {
+                        title: function(context) {
+                            const monthLabel = context?.[0]?.label || '';
+
+                            return monthLabel ? 'Month: ' + monthLabel : trendPeriodLabel;
+                        },
                         label: function(context) {
-                            return 'Submissions: ' + (context.parsed.y ?? 0);
+                            return 'Submitted IPCRs: ' + (context.parsed.y ?? 0);
+                        },
+                        afterLabel: function() {
+                            return 'Period: ' + trendPeriodLabel;
                         }
                     }
                 }

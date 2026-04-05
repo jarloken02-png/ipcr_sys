@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\MediaAsset;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -24,7 +25,7 @@ class DeanDirectorSummaryExportService
      */
     public function export(Collection $rows, array $preparedBy, array $notedBy): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Dean Director Summary');
 
@@ -35,12 +36,12 @@ class DeanDirectorSummaryExportService
         $this->renderScaleAndSignatures($sheet, $dataEndRow + 2, $preparedBy, $notedBy);
 
         $outputDir = storage_path('app/exports');
-        if (!is_dir($outputDir)) {
+        if (! is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
 
-        $fileName = 'Dean_Director_Summary_' . now()->format('Ymd_His') . '.xlsx';
-        $filePath = $outputDir . DIRECTORY_SEPARATOR . $fileName;
+        $fileName = 'Dean_Director_Summary_'.now()->format('Ymd_His').'.xlsx';
+        $filePath = $outputDir.DIRECTORY_SEPARATOR.$fileName;
 
         $writer = new Xlsx($spreadsheet);
         $writer->save($filePath);
@@ -115,9 +116,9 @@ class DeanDirectorSummaryExportService
         $sheet->getRowDimension(6)->setRowHeight(22);
         $sheet->getRowDimension(7)->setRowHeight(22);
 
-        $logoPath = public_path('images/urs_logo.jpg');
-        if (is_file($logoPath)) {
-            $drawing = new Drawing();
+        $logoPath = MediaAsset::publicImageLocalPath('urs_logo.jpg');
+        if ($logoPath && is_file($logoPath)) {
+            $drawing = new Drawing;
             $drawing->setName('URS Logo');
             $drawing->setDescription('URS Logo');
             $drawing->setPath($logoPath);
@@ -185,7 +186,7 @@ class DeanDirectorSummaryExportService
             $employeeName = trim((string) ($leader['employee_name'] ?? ''));
             $displayName = $employeeName !== '' ? $employeeName : 'N/A';
 
-            $sheet->setCellValue("B{$row}", $index . '. ' . $displayName);
+            $sheet->setCellValue("B{$row}", $index.'. '.$displayName);
 
             $strategicPoints = $this->asNullableFloat($leader['strategic_score'] ?? null);
             $corePoints = $this->asNullableFloat($leader['core_score'] ?? null);
@@ -273,26 +274,27 @@ class DeanDirectorSummaryExportService
         $notedPosition = trim((string) ($notedBy['position'] ?? ''));
 
         $sheet->mergeCells("B{$nameRow}:D{$nameRow}");
-        $sheet->mergeCells("B" . ($nameRow + 1) . ":D" . ($nameRow + 1));
+        $sheet->mergeCells('B'.($nameRow + 1).':D'.($nameRow + 1));
         $sheet->mergeCells("H{$nameRow}:J{$nameRow}");
-        $sheet->mergeCells("H" . ($nameRow + 1) . ":J" . ($nameRow + 1));
+        $sheet->mergeCells('H'.($nameRow + 1).':J'.($nameRow + 1));
 
         $sheet->setCellValue("B{$nameRow}", $preparedName);
-        $sheet->setCellValue("B" . ($nameRow + 1), $preparedPosition);
+        $sheet->setCellValue('B'.($nameRow + 1), $preparedPosition);
 
         $sheet->setCellValue("H{$nameRow}", $notedName);
-        $sheet->setCellValue("H" . ($nameRow + 1), $notedPosition);
+        $sheet->setCellValue('H'.($nameRow + 1), $notedPosition);
 
         $sheet->getStyle("B{$nameRow}:D{$nameRow}")->getFont()->setBold(true)->setUnderline(true)->setSize(14);
         $sheet->getStyle("H{$nameRow}:J{$nameRow}")->getFont()->setBold(true)->setUnderline(true)->setSize(14);
-        $sheet->getStyle("B" . ($nameRow + 1) . ":D" . ($nameRow + 1))->getFont()->setSize(13);
-        $sheet->getStyle("H" . ($nameRow + 1) . ":J" . ($nameRow + 1))->getFont()->setSize(13);
+        $sheet->getStyle('B'.($nameRow + 1).':D'.($nameRow + 1))->getFont()->setSize(13);
+        $sheet->getStyle('H'.($nameRow + 1).':J'.($nameRow + 1))->getFont()->setSize(13);
     }
 
     private function setNumericOrBlank(Worksheet $sheet, string $cell, ?float $value): void
     {
         if ($value === null) {
             $sheet->setCellValue($cell, '');
+
             return;
         }
 

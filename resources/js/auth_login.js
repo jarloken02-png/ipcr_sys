@@ -60,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Dark Mode Logic (Temporary Testing) ---
     const body = document.body;
     const bgImageTag = document.querySelector('.auth-card__image img');
+    const lightImageSrc = bgImageTag?.dataset.lightSrc || bgImageTag?.src || '';
+    const darkImageSrc = bgImageTag?.dataset.darkSrc || lightImageSrc;
 
     // Create the temporary toggle switch
     const toggleContainer = document.createElement('div');
@@ -91,8 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body.classList.add('dark-mode');
         localStorage.setItem('auth_dark_mode', 'true');
         toggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
-        if (bgImageTag) {
-            bgImageTag.src = bgImageTag.src.replace('login_img.png', 'login_imgdrk.png');
+        if (bgImageTag && darkImageSrc) {
+            bgImageTag.src = darkImageSrc;
         }
     }
 
@@ -100,8 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body.classList.remove('dark-mode');
         localStorage.setItem('auth_dark_mode', 'false');
         toggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
-        if (bgImageTag) {
-            bgImageTag.src = bgImageTag.src.replace('login_imgdrk.png', 'login_img.png');
+        if (bgImageTag && lightImageSrc) {
+            bgImageTag.src = lightImageSrc;
         }
     }
 });

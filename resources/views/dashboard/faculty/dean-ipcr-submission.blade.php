@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dean IPCR Submission - {{ $submission->title }}</title>
-    <link rel="icon" type="image/jpeg" href="{{ asset('images/urs_logo.jpg') }}">
+    <link rel="icon" type="image/jpeg" href="{{ \App\Support\MediaAsset::publicImageUrl('urs_logo.jpg') }}">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900">
     <nav class="bg-white shadow-sm border-b sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <img src="{{ asset('images/urs_logo.jpg') }}" alt="URS Logo" class="h-10 w-auto object-contain">
+                <img src="{{ \App\Support\MediaAsset::publicImageUrl('urs_logo.jpg') }}" alt="URS Logo" class="h-10 w-auto object-contain">
                 <div>
                     <h1 class="text-base sm:text-lg font-bold">Dean IPCR Submission</h1>
                     <p class="text-xs text-gray-500">HR View</p>

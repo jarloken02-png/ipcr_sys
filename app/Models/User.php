@@ -6,7 +6,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\UserRole;
 
 class User extends Authenticatable
 {
@@ -91,6 +90,7 @@ class User extends Authenticatable
                 return true;
             }
         }
+
         return false;
     }
 
@@ -106,6 +106,7 @@ class User extends Authenticatable
         }
 
         $userRoleNames = $this->roles();
+
         return Role::whereIn('name', $userRoleNames)
             ->whereHas('permissions', function ($q) use ($permissionKey) {
                 $q->where('key', $permissionKey);
@@ -118,7 +119,7 @@ class User extends Authenticatable
      */
     public function assignRole($role)
     {
-        if (!$this->hasRole($role)) {
+        if (! $this->hasRole($role)) {
             UserRole::create([
                 'user_id' => $this->id,
                 'role' => $role,
@@ -144,13 +145,13 @@ class User extends Authenticatable
     {
         $roles = $this->roles();
         $priority = ['admin', 'director', 'dean', 'faculty'];
-        
+
         foreach ($priority as $role) {
             if (in_array($role, $roles)) {
                 return $role;
             }
         }
-        
+
         return $roles[0] ?? null;
     }
 
@@ -196,28 +197,19 @@ class User extends Authenticatable
                 ->where('is_profile_photo', true)
                 ->latest('updated_at')
                 ->first();
-            
-            if ($profilePhoto && $profilePhoto->path) {
-                // For Cloudinary, path is already the full URL
-                if (str_starts_with($profilePhoto->path, 'http')) {
-                    // Add cache-busting parameter to Cloudinary URL
-                    $timestamp = $profilePhoto->updated_at->timestamp;
-                    return $profilePhoto->path . '?v=' . $timestamp;
-                }
-                
-                // Legacy: For local storage (in case old photos exist)
-                $fullPath = storage_path("app/public/{$profilePhoto->path}");
-                if (file_exists($fullPath)) {
-                    $timestamp = $profilePhoto->updated_at->timestamp;
-                    return asset("storage/{$profilePhoto->path}?v={$timestamp}");
+
+            if ($profilePhoto) {
+                $resolvedUrl = (string) $profilePhoto->photo_url;
+                if ($resolvedUrl !== '') {
+                    return $resolvedUrl;
                 }
             }
         } catch (\Exception $e) {
             // Log error if needed
         }
-        
+
         // Return generic silhouette avatar
-        return 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" fill="#e5e7eb"/><path fill="#9ca3af" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
+        return 'data:image/svg+xml;base64,'.base64_encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" fill="#e5e7eb"/><path fill="#9ca3af" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
     }
 
     /**
@@ -231,43 +223,43 @@ class User extends Authenticatable
                 'key' => 'name',
                 'label' => 'Full Name',
                 'icon' => 'fa-user',
-                'completed' => !empty($this->name),
+                'completed' => ! empty($this->name),
             ],
             [
                 'key' => 'email',
                 'label' => 'Email Address',
                 'icon' => 'fa-envelope',
-                'completed' => !empty($this->email),
+                'completed' => ! empty($this->email),
             ],
             [
                 'key' => 'username',
                 'label' => 'Username',
                 'icon' => 'fa-at',
-                'completed' => !empty($this->username),
+                'completed' => ! empty($this->username),
             ],
             [
                 'key' => 'phone',
                 'label' => 'Phone Number',
                 'icon' => 'fa-phone',
-                'completed' => !empty($this->phone),
+                'completed' => ! empty($this->phone),
             ],
             [
                 'key' => 'employee_id',
                 'label' => 'Employee ID',
                 'icon' => 'fa-id-badge',
-                'completed' => !empty($this->employee_id),
+                'completed' => ! empty($this->employee_id),
             ],
             [
                 'key' => 'department_id',
                 'label' => 'Department',
                 'icon' => 'fa-building',
-                'completed' => !empty($this->department_id),
+                'completed' => ! empty($this->department_id),
             ],
             [
                 'key' => 'designation_id',
                 'label' => 'Designation',
                 'icon' => 'fa-briefcase',
-                'completed' => !empty($this->designation_id),
+                'completed' => ! empty($this->designation_id),
             ],
             [
                 'key' => 'profile_photo',
@@ -296,8 +288,13 @@ class User extends Authenticatable
     {
         $percentage = $this->getProfileCompleteness()['percentage'];
 
-        if ($percentage >= 80) return 'green';
-        if ($percentage >= 50) return 'yellow';
+        if ($percentage >= 80) {
+            return 'green';
+        }
+        if ($percentage >= 50) {
+            return 'yellow';
+        }
+
         return 'red';
     }
 
@@ -312,21 +309,14 @@ class User extends Authenticatable
                 ->where('is_profile_photo', true)
                 ->latest('updated_at')
                 ->first();
-            
-            if ($profilePhoto && $profilePhoto->path) {
-                // For Cloudinary URLs
-                if (str_starts_with($profilePhoto->path, 'http')) {
-                    return true;
-                }
-                
-                // Legacy: For local storage
-                $fullPath = storage_path("app/public/{$profilePhoto->path}");
-                return file_exists($fullPath);
+
+            if ($profilePhoto) {
+                return trim((string) ($profilePhoto->path ?: $profilePhoto->filename)) !== '';
             }
         } catch (\Exception $e) {
             // Log error if needed
         }
-        
+
         return false;
     }
 }

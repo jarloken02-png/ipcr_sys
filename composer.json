@@ -17,7 +17,6 @@
         "ext-xmlreader": "*",
         "ext-xmlwriter": "*",
         "ext-zip": "*",
-        "cloudinary-labs/cloudinary-laravel": "^2.2",
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Code - University of Rizal System Binangonan</title>
-    <link rel="icon" type="image/jpeg" href="{{ asset('images/urs_logo.jpg') }}">
+    <link rel="icon" type="image/jpeg" href="{{ \App\Support\MediaAsset::publicImageUrl('urs_logo.jpg') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,12 @@
 <body data-show-code-error="{{ $errors->has('code') ? '1' : '0' }}" data-start-resend-timer="{{ session('success') ? '1' : '0' }}">
     <div class="auth-card">
         <div class="auth-card__image">
-            <img src="{{ asset('images/login_img.png') }}" alt="Illustration">
+            <img
+                src="{{ \App\Support\MediaAsset::publicImageUrl('login_img.png') }}"
+                data-light-src="{{ \App\Support\MediaAsset::publicImageUrl('login_img.png') }}"
+                data-dark-src="{{ \App\Support\MediaAsset::publicImageUrl('login_imgdrk.png') }}"
+                alt="Illustration"
+            >
         </div>
 
         <div class="auth-card__form">
@@ -25,7 +30,7 @@
                             <span class="uni-campus">BINANGONAN CAMPUS</span>
                         </div>
                     </div>
-                    <img src="{{ asset('images/urs_logo.jpg') }}" alt="URS Logo" class="auth-logo">
+                    <img src="{{ \App\Support\MediaAsset::publicImageUrl('urs_logo.jpg') }}" alt="URS Logo" class="auth-logo">
                 </div>
 
                 <h1>Verify Your Email</h1>

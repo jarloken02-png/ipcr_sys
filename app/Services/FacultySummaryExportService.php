@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\MediaAsset;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -24,7 +25,7 @@ class FacultySummaryExportService
      */
     public function export(Collection $departmentRows, array $preparedBy, array $approvedBy, array $meta = []): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Faculty Summary');
 
@@ -63,12 +64,12 @@ class FacultySummaryExportService
         $this->renderSignatures($sheet, $currentRow + 2, $preparedBy, $approvedBy);
 
         $outputDir = storage_path('app/exports');
-        if (!is_dir($outputDir)) {
+        if (! is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
 
-        $fileName = 'Faculty_Summary_' . now()->format('Ymd_His') . '.xlsx';
-        $filePath = $outputDir . DIRECTORY_SEPARATOR . $fileName;
+        $fileName = 'Faculty_Summary_'.now()->format('Ymd_His').'.xlsx';
+        $filePath = $outputDir.DIRECTORY_SEPARATOR.$fileName;
 
         $writer = new Xlsx($spreadsheet);
         $writer->save($filePath);
@@ -113,7 +114,7 @@ class FacultySummaryExportService
         $sheet->mergeCells('A6:F6');
         $sheet->mergeCells('A7:F7');
         $sheet->setCellValue('A6', 'Individual Performance Commitment and Review (IPCR)');
-        $sheet->setCellValue('A7', 'Faculty Summary Report • Generated ' . $generatedAt->format('F d, Y h:i A'));
+        $sheet->setCellValue('A7', 'Faculty Summary Report • Generated '.$generatedAt->format('F d, Y h:i A'));
 
         $sheet->getStyle('B1:E4')->applyFromArray([
             'alignment' => [
@@ -143,9 +144,9 @@ class FacultySummaryExportService
         $sheet->getRowDimension(6)->setRowHeight(22);
         $sheet->getRowDimension(7)->setRowHeight(20);
 
-        $logoPath = public_path('images/urs_logo.jpg');
-        if (is_file($logoPath)) {
-            $drawing = new Drawing();
+        $logoPath = MediaAsset::publicImageLocalPath('urs_logo.jpg');
+        if ($logoPath && is_file($logoPath)) {
+            $drawing = new Drawing;
             $drawing->setName('URS Logo');
             $drawing->setDescription('URS Logo');
             $drawing->setPath($logoPath);
@@ -253,7 +254,7 @@ class FacultySummaryExportService
         $columnKeys = ['A', 'B', 'C', 'D', 'E', 'F'];
 
         foreach ($headers as $index => $headerLabel) {
-            $cell = $columnKeys[$index] . $startRow;
+            $cell = $columnKeys[$index].$startRow;
             $sheet->setCellValue($cell, $headerLabel);
         }
 
@@ -330,23 +331,23 @@ class FacultySummaryExportService
         $approvedPosition = trim((string) ($approvedBy['position'] ?? ''));
 
         $sheet->mergeCells("A{$nameRow}:B{$nameRow}");
-        $sheet->mergeCells("A" . ($nameRow + 1) . ":B" . ($nameRow + 1));
+        $sheet->mergeCells('A'.($nameRow + 1).':B'.($nameRow + 1));
         $sheet->mergeCells("D{$nameRow}:E{$nameRow}");
-        $sheet->mergeCells("D" . ($nameRow + 1) . ":E" . ($nameRow + 1));
+        $sheet->mergeCells('D'.($nameRow + 1).':E'.($nameRow + 1));
 
         $sheet->setCellValue("A{$nameRow}", $preparedName);
-        $sheet->setCellValue("A" . ($nameRow + 1), $preparedPosition !== '' ? $preparedPosition : 'HRMO');
+        $sheet->setCellValue('A'.($nameRow + 1), $preparedPosition !== '' ? $preparedPosition : 'HRMO');
 
         $sheet->setCellValue("D{$nameRow}", $approvedName);
-        $sheet->setCellValue("D" . ($nameRow + 1), $approvedPosition !== '' ? $approvedPosition : 'Campus Director');
+        $sheet->setCellValue('D'.($nameRow + 1), $approvedPosition !== '' ? $approvedPosition : 'Campus Director');
 
         $sheet->getStyle("A{$nameRow}:B{$nameRow}")->getFont()->setBold(true)->setUnderline(true)->setSize(12);
         $sheet->getStyle("D{$nameRow}:E{$nameRow}")->getFont()->setBold(true)->setUnderline(true)->setSize(12);
 
-        $sheet->getStyle("A" . ($nameRow + 1) . ":B" . ($nameRow + 1))->getFont()->setSize(11);
-        $sheet->getStyle("D" . ($nameRow + 1) . ":E" . ($nameRow + 1))->getFont()->setSize(11);
+        $sheet->getStyle('A'.($nameRow + 1).':B'.($nameRow + 1))->getFont()->setSize(11);
+        $sheet->getStyle('D'.($nameRow + 1).':E'.($nameRow + 1))->getFont()->setSize(11);
 
-        $sheet->getStyle("A{$nameRow}:B" . ($nameRow + 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->getStyle("D{$nameRow}:E" . ($nameRow + 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("A{$nameRow}:B".($nameRow + 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("D{$nameRow}:E".($nameRow + 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
     }
 }

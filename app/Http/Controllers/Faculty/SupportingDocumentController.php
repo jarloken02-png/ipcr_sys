@@ -5,14 +5,13 @@ namespace App\Http\Controllers\Faculty;
 use App\Http\Controllers\Controller;
 use App\Models\SupportingDocument;
 use App\Services\ActivityLogService;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary as CloudinaryFacade;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SupportingDocumentController extends Controller
 {
-
     /**
      * Get all supporting documents for a specific SO.
      * Queries across both template and submission types for sync.
@@ -49,18 +48,12 @@ class SupportingDocumentController extends Controller
             ->where('so_label', $request->so_label)
             ->orderBy('created_at', 'desc')
             ->get()
-            ->unique('path') // Deduplicate same Cloudinary file copied between template/submission
+            // Deduplicate same file copied between template/submission.
+            ->unique(function (SupportingDocument $doc) {
+                return $doc->storage_key ?: $doc->path;
+            })
             ->values()
-            ->map(function ($doc) {
-                return [
-                    'id' => $doc->id,
-                    'original_name' => $doc->original_name,
-                    'path' => $doc->path,
-                    'mime_type' => $doc->mime_type,
-                    'file_size_human' => $doc->file_size_human,
-                    'created_at' => $doc->created_at->format('M d, Y h:i A'),
-                ];
-            });
+            ->map(fn (SupportingDocument $doc) => $this->mapDocument($doc));
 
         return response()->json([
             'success' => true,
@@ -85,64 +78,64 @@ class SupportingDocumentController extends Controller
             $user = auth()->user();
             $timestamp = now()->format('Y-m-d_H-i-s');
             $safeOrigName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $safeOrigName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $safeOrigName);
+            $safeOrigName = $this->sanitizePathSegment($safeOrigName, 'file');
+            $extension = strtolower((string) ($file->getClientOriginalExtension() ?: 'bin'));
 
-            // Neat path: user_photos/{user_id}/supporting_docs/{type}/{doc_id}/{so_label}/{timestamp}_{filename}
-            $soFolder = str_replace(' ', '_', strtolower($request->so_label));
-            $folderPath = "user_photos/{$user->id}/supporting_docs/{$request->documentable_type}/{$request->documentable_id}/{$soFolder}";
+            // Path: supporting_documents/{user_id}/{type}/{doc_id}/{so_label}/{timestamp}_{filename}.{ext}
+            $soFolder = $this->sanitizePathSegment($request->so_label, 'supporting_document');
+            $folderPath = "supporting_documents/{$user->id}/{$request->documentable_type}/{$request->documentable_id}/{$soFolder}";
+            $objectName = "{$timestamp}_{$safeOrigName}.{$extension}";
+            $mimeType = $file->getClientMimeType() ?: 'application/octet-stream';
 
-            Log::info('Starting Cloudinary upload', [
+            Log::info('Starting supporting document upload', [
                 'user_id' => $user->id,
                 'file_name' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'folder' => $folderPath,
             ]);
 
-            // Upload using Laravel Cloudinary facade
-            $uploadResult = CloudinaryFacade::upload($file->getRealPath(), [
-                'folder' => $folderPath,
-                'resource_type' => 'auto',
-                'timeout' => 120,
-            ]);
+            $storedPath = Storage::disk('s3')->putFileAs(
+                $folderPath,
+                $file,
+                $objectName,
+                [
+                    'ContentType' => $mimeType,
+                ]
+            );
 
-            Log::info('Cloudinary upload successful', ['url' => $uploadResult->getSecurePath()]);
+            if ($storedPath === false) {
+                throw new \RuntimeException('Failed to upload document to cloud storage.');
+            }
 
-            // Use the real client MIME type (getFileType() returns Cloudinary resource type like "image"/"raw", not the actual MIME type)
-            $mimeType = $file->getClientMimeType() ?: 'application/octet-stream';
+            Log::info('Supporting document upload successful', ['key' => $storedPath]);
 
             $document = SupportingDocument::create([
                 'user_id' => $user->id,
                 'documentable_type' => $request->documentable_type,
                 'documentable_id' => $request->documentable_id,
                 'so_label' => $request->so_label,
-                'filename' => $uploadResult->getPublicId(),
-                'path' => $uploadResult->getSecurePath(),
+                'filename' => $storedPath,
+                'path' => $storedPath,
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $mimeType,
                 'file_size' => $file->getSize(),
             ]);
 
-            ActivityLogService::log('document_uploaded', 'Uploaded supporting document: ' . $document->original_name, $document);
+            ActivityLogService::log('document_uploaded', 'Uploaded supporting document: '.$document->original_name, $document);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Document uploaded successfully.',
-                'document' => [
-                    'id' => $document->id,
-                    'original_name' => $document->original_name,
-                    'path' => $document->path,
-                    'mime_type' => $document->mime_type,
-                    'file_size_human' => $document->file_size_human,
-                    'created_at' => $document->created_at->format('M d, Y h:i A'),
-                ],
+                'document' => $this->mapDocument($document),
             ]);
         } catch (\Exception $e) {
-            Log::error('Supporting document upload error: ' . $e->getMessage(), [
+            Log::error('Supporting document upload error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Upload failed: ' . $e->getMessage(),
+                'message' => 'Upload failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -157,35 +150,30 @@ class SupportingDocumentController extends Controller
             ->firstOrFail();
 
         try {
-            if ($document->filename) {
-                try {
-                    CloudinaryFacade::destroy($document->filename);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to delete from Cloudinary: ' . $e->getMessage());
-                }
-            }
+            $this->deleteStoredDocument($document);
 
             $docName = $document->original_name;
             $document->delete();
 
-            ActivityLogService::log('document_deleted', 'Deleted supporting document: ' . $docName);
+            ActivityLogService::log('document_deleted', 'Deleted supporting document: '.$docName);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Document deleted successfully.',
             ]);
         } catch (\Exception $e) {
-            Log::error('Supporting document delete error: ' . $e->getMessage());
+            Log::error('Supporting document delete error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Delete failed: ' . $e->getMessage(),
+                'message' => 'Delete failed: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Rename a supporting document.
-     * Updates both database and Cloudinary public_id for cleaner file management.
+     * Updates both database and cloud object key for cleaner file management.
      */
     public function rename(Request $request, $id)
     {
@@ -198,46 +186,46 @@ class SupportingDocumentController extends Controller
             ->firstOrFail();
 
         try {
-            // Extract path info from current filename
-            $oldPublicId = $document->filename;
-            $pathParts = explode('/', $oldPublicId);
-            $oldFilename = array_pop($pathParts);
-            $folderPath = implode('/', $pathParts);
-
-            // Create new filename from the new original_name
             $newOriginalName = $request->original_name;
-            $extension = pathinfo($newOriginalName, PATHINFO_EXTENSION);
-            $nameWithoutExt = pathinfo($newOriginalName, PATHINFO_FILENAME);
-            $safeNewName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $nameWithoutExt);
-            $timestamp = now()->format('Y-m-d_H-i-s');
-            $newFilename = "{$timestamp}_{$safeNewName}";
-            $newPublicId = $folderPath ? "{$folderPath}/{$newFilename}" : $newFilename;
 
-            // Rename in Cloudinary
-            try {
-                CloudinaryFacade::rename($oldPublicId, $newPublicId);
-                
-                // Get new URL
-                $newUrl = CloudinaryFacade::getUrl($newPublicId);
-                
-                // Update database
-                $document->filename = $newPublicId;
-                $document->path = $newUrl;
+            $oldKey = $document->storage_key;
+
+            if ($oldKey) {
+                $pathInfo = pathinfo($oldKey);
+                $folderPath = isset($pathInfo['dirname']) && $pathInfo['dirname'] !== '.'
+                    ? trim((string) $pathInfo['dirname'], '/')
+                    : '';
+                $existingExtension = strtolower((string) ($pathInfo['extension'] ?? ''));
+                $nameWithoutExt = pathinfo($newOriginalName, PATHINFO_FILENAME);
+                $safeNewName = $this->sanitizePathSegment($nameWithoutExt, 'document');
+                $timestamp = now()->format('Y-m-d_H-i-s');
+                $extension = $existingExtension !== ''
+                    ? $existingExtension
+                    : strtolower((string) (pathinfo($newOriginalName, PATHINFO_EXTENSION) ?: 'bin'));
+
+                $newObjectName = "{$timestamp}_{$safeNewName}.{$extension}";
+                $newKey = $folderPath === '' ? $newObjectName : $folderPath.'/'.$newObjectName;
+
+                if ($oldKey !== $newKey && ! $this->moveStoredDocument($oldKey, $newKey)) {
+                    throw new \RuntimeException('Unable to rename the stored document object.');
+                }
+
+                $document->filename = $newKey;
+                $document->path = $newKey;
                 $document->original_name = $newOriginalName;
                 $document->save();
 
-                Log::info('Document renamed in Cloudinary', [
-                    'old_public_id' => $oldPublicId,
-                    'new_public_id' => $newPublicId,
+                Log::info('Document renamed in cloud storage', [
+                    'old_key' => $oldKey,
+                    'new_key' => $newKey,
                 ]);
-            } catch (\Exception $cloudinaryError) {
-                // If Cloudinary rename fails, just update the display name
-                Log::warning('Cloudinary rename failed, updating display name only: ' . $cloudinaryError->getMessage());
+            } else {
+                // Legacy URL-based record: keep storage reference untouched and only rename display name.
                 $document->original_name = $newOriginalName;
                 $document->save();
             }
 
-            ActivityLogService::log('document_renamed', 'Renamed supporting document to: ' . $document->original_name, $document);
+            ActivityLogService::log('document_renamed', 'Renamed supporting document to: '.$document->original_name, $document);
 
             return response()->json([
                 'success' => true,
@@ -245,14 +233,15 @@ class SupportingDocumentController extends Controller
                 'document' => [
                     'id' => $document->id,
                     'original_name' => $document->original_name,
-                    'path' => $document->path,
+                    'path' => $document->file_url,
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Supporting document rename error: ' . $e->getMessage());
+            Log::error('Supporting document rename error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Rename failed: ' . $e->getMessage(),
+                'message' => 'Rename failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -264,30 +253,51 @@ class SupportingDocumentController extends Controller
     public function download($id)
     {
         $document = SupportingDocument::findOrFail($id);
-        
+
         // Check authorization: owner or dean role
         $user = auth()->user();
         $canDownload = $document->user_id === $user->id || $user->hasRole('dean') || $user->hasRole('admin');
-        
-        if (!$canDownload) {
+
+        if (! $canDownload) {
             abort(403, 'Unauthorized');
         }
 
         try {
-            // Validate URL points to expected Cloudinary domain (prevent SSRF)
-            $parsedUrl = parse_url($document->path);
-            $allowedHosts = ['res.cloudinary.com', 'cloudinary.com'];
-            if (!$parsedUrl || !isset($parsedUrl['host']) || !in_array($parsedUrl['host'], $allowedHosts)) {
+            $storageKey = $document->storage_key;
+
+            if ($storageKey) {
+                $stream = $this->openDocumentStream($storageKey);
+
+                if ($stream === false) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to read file from storage.',
+                    ], 500);
+                }
+
+                ActivityLogService::log('document_downloaded', 'Downloaded supporting document: '.$document->original_name, $document);
+
+                return response()->streamDownload(function () use ($stream) {
+                    fpassthru($stream);
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }, $document->original_name, [
+                    'Content-Type' => $document->mime_type ?? 'application/octet-stream',
+                ]);
+            }
+
+            $remoteUrl = trim((string) $document->path);
+            if ($remoteUrl === '' || ! $this->isAllowedRemoteUrl($remoteUrl)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid document URL.',
                 ], 400);
             }
 
-            // Fetch file content from Cloudinary with timeout
-            $response = Http::timeout(15)->get($document->path);
+            $response = Http::timeout(15)->get($remoteUrl);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to fetch file from storage.',
@@ -296,19 +306,128 @@ class SupportingDocumentController extends Controller
 
             $fileContent = $response->body();
 
-            ActivityLogService::log('document_downloaded', 'Downloaded supporting document: ' . $document->original_name, $document);
+            ActivityLogService::log('document_downloaded', 'Downloaded supporting document: '.$document->original_name, $document);
 
             // Return file with download headers
             return response($fileContent)
                 ->header('Content-Type', $document->mime_type ?? 'application/octet-stream')
-                ->header('Content-Disposition', 'attachment; filename="' . $document->original_name . '"')
+                ->header('Content-Disposition', 'attachment; filename="'.$document->original_name.'"')
                 ->header('Content-Length', strlen($fileContent));
         } catch (\Exception $e) {
-            Log::error('Supporting document download error: ' . $e->getMessage());
+            Log::error('Supporting document download error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Download failed: ' . $e->getMessage(),
+                'message' => 'Download failed: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    private function mapDocument(SupportingDocument $document): array
+    {
+        return [
+            'id' => $document->id,
+            'original_name' => $document->original_name,
+            'path' => $document->file_url,
+            'mime_type' => $document->mime_type,
+            'file_size_human' => $document->file_size_human,
+            'created_at' => $document->created_at->format('M d, Y h:i A'),
+        ];
+    }
+
+    private function sanitizePathSegment(string $value, string $fallback): string
+    {
+        $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower(trim($value))) ?? '';
+        $sanitized = trim($sanitized, '_-');
+
+        return $sanitized !== '' ? $sanitized : $fallback;
+    }
+
+    private function deleteStoredDocument(SupportingDocument $document): void
+    {
+        $key = $document->storage_key;
+
+        if (! $key) {
+            return;
+        }
+
+        $s3Disk = Storage::disk('s3');
+        if ($s3Disk->exists($key)) {
+            $s3Disk->delete($key);
+
+            return;
+        }
+
+        // Legacy fallback for older local records.
+        $publicDisk = Storage::disk('public');
+        if ($publicDisk->exists($key)) {
+            $publicDisk->delete($key);
+        }
+    }
+
+    private function moveStoredDocument(string $oldKey, string $newKey): bool
+    {
+        $s3Disk = Storage::disk('s3');
+        if ($s3Disk->exists($oldKey)) {
+            return $s3Disk->move($oldKey, $newKey);
+        }
+
+        $publicDisk = Storage::disk('public');
+        if ($publicDisk->exists($oldKey)) {
+            return $publicDisk->move($oldKey, $newKey);
+        }
+
+        return false;
+    }
+
+    private function openDocumentStream(string $key)
+    {
+        $s3Disk = Storage::disk('s3');
+        if ($s3Disk->exists($key)) {
+            return $s3Disk->readStream($key);
+        }
+
+        $publicDisk = Storage::disk('public');
+        if ($publicDisk->exists($key)) {
+            return $publicDisk->readStream($key);
+        }
+
+        return false;
+    }
+
+    private function isAllowedRemoteUrl(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '') {
+            return false;
+        }
+
+        $allowedHosts = ['res.cloudinary.com', 'cloudinary.com'];
+
+        foreach (['filesystems.disks.s3.url', 'filesystems.disks.s3.endpoint'] as $configKey) {
+            $configuredUrl = trim((string) config($configKey, ''));
+            if ($configuredUrl === '') {
+                continue;
+            }
+
+            $configuredHost = strtolower((string) parse_url($configuredUrl, PHP_URL_HOST));
+            if ($configuredHost !== '') {
+                $allowedHosts[] = $configuredHost;
+            }
+        }
+
+        $allowedHosts = array_values(array_unique($allowedHosts));
+
+        if (in_array($host, $allowedHosts, true)) {
+            return true;
+        }
+
+        foreach ($allowedHosts as $allowedHost) {
+            if ($allowedHost !== '' && str_ends_with($host, '.'.$allowedHost)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

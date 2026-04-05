@@ -4,70 +4,37 @@ namespace App\Services;
 
 use App\Models\UserPhoto;
 use Illuminate\Support\Facades\Log;
-use Cloudinary\Cloudinary;
+use Illuminate\Support\Facades\Storage;
 
 class PhotoService
 {
-    protected ?Cloudinary $cloudinary = null;
-
-    public function __construct()
-    {
-        $cloudName = config('cloudinary.cloud_name');
-        $apiKey = config('cloudinary.api_key');
-        $apiSecret = config('cloudinary.api_secret');
-
-        if ($cloudName && $apiKey && $apiSecret) {
-            $this->cloudinary = new Cloudinary([
-                'cloud' => [
-                    'cloud_name' => $cloudName,
-                    'api_key' => $apiKey,
-                    'api_secret' => $apiSecret,
-                ],
-            ]);
-        } else {
-            Log::warning('Cloudinary is not configured. Photo features will be disabled.');
-        }
-    }
-
-    protected function ensureCloudinary(): Cloudinary
-    {
-        if (!$this->cloudinary) {
-            throw new \Exception('Cloudinary is not configured.');
-        }
-
-        return $this->cloudinary;
-    }
-
     public function uploadPhoto($file, $user)
     {
         try {
-            if (!$file) {
+            if (! $file) {
                 throw new \Exception('No file provided');
             }
 
             $timestamp = now()->format('Y-m-d_H-i-s');
             $username = strtolower(str_replace(' ', '-', $user->username));
-            $publicId = "user_photos/{$user->id}/{$timestamp}-{$username}";
+            $username = trim((string) preg_replace('/[^a-z0-9_-]/', '-', $username), '-');
+            $username = $username !== '' ? $username : 'user';
 
-            // Upload to Cloudinary with transformations
-            $uploadResult = $this->ensureCloudinary()->uploadApi()->upload(
-                $file->getRealPath(),
+            $extension = strtolower((string) ($file->getClientOriginalExtension() ?: 'jpg'));
+            $filename = "{$timestamp}-{$username}.{$extension}";
+            $folderPath = "user_photos/{$user->id}";
+
+            $storedPath = Storage::disk('s3')->putFileAs(
+                $folderPath,
+                $file,
+                $filename,
                 [
-                    'public_id' => $publicId,
-                    'folder' => 'user_photos',
-                    'transformation' => [
-                        'width' => 1200,
-                        'height' => 1200,
-                        'crop' => 'limit',
-                        'quality' => 'auto:good',
-                        'fetch_format' => 'auto'
-                    ],
-                    'resource_type' => 'image'
+                    'ContentType' => $file->getClientMimeType() ?: 'application/octet-stream',
                 ]
             );
 
-            if (!isset($uploadResult['secure_url'])) {
-                throw new \Exception('Cloudinary upload failed - no URL returned');
+            if ($storedPath === false) {
+                throw new \Exception('Failed to upload photo to cloud storage.');
             }
 
             // Unset current profile photo
@@ -78,41 +45,31 @@ class PhotoService
             // Save photo record to database
             $userPhoto = UserPhoto::create([
                 'user_id' => $user->id,
-                'filename' => $uploadResult['public_id'],
-                'path' => $uploadResult['secure_url'],
+                'filename' => $storedPath,
+                'path' => $storedPath,
                 'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $uploadResult['format'] ?? $file->getClientMimeType(),
-                'file_size' => $uploadResult['bytes'] ?? $file->getSize(),
+                'mime_type' => $file->getClientMimeType() ?: 'application/octet-stream',
+                'file_size' => $file->getSize(),
                 'is_profile_photo' => true,
             ]);
 
             return $userPhoto;
         } catch (\Exception $e) {
-            Log::error('Photo upload error: ' . $e->getMessage());
-            throw new \Exception('Photo upload failed: ' . $e->getMessage());
+            Log::error('Photo upload error: '.$e->getMessage());
+            throw new \Exception('Photo upload failed: '.$e->getMessage());
         }
     }
 
     public function deletePhoto(UserPhoto $photo)
     {
         try {
-            // Extract public_id from Cloudinary URL or use filename
-            $publicId = $photo->filename;
-            
-            // Delete from Cloudinary
-            try {
-                $this->ensureCloudinary()->uploadApi()->destroy($publicId, [
-                    'resource_type' => 'image'
-                ]);
-            } catch (\Exception $e) {
-                Log::warning('Cloudinary delete warning: ' . $e->getMessage());
-            }
+            $this->deleteStoredPhoto($photo);
 
             // Delete from database
             $photo->delete();
         } catch (\Exception $e) {
-            Log::error('Photo delete error: ' . $e->getMessage());
-            throw new \Exception('Failed to delete photo: ' . $e->getMessage());
+            Log::error('Photo delete error: '.$e->getMessage());
+            throw new \Exception('Failed to delete photo: '.$e->getMessage());
         }
     }
 
@@ -120,30 +77,42 @@ class PhotoService
     {
         try {
             $photos = UserPhoto::where('user_id', $user->id)->get();
-            
+
             foreach ($photos as $photo) {
                 try {
-                    $publicId = $photo->filename;
-                    $this->ensureCloudinary()->uploadApi()->destroy($publicId, [
-                        'resource_type' => 'image'
-                    ]);
+                    $this->deleteStoredPhoto($photo);
                 } catch (\Exception $e) {
-                    Log::warning("Failed to delete photo {$photo->id} from Cloudinary: " . $e->getMessage());
+                    Log::warning("Failed to delete photo {$photo->id} from storage: ".$e->getMessage());
                 }
-            }
-
-            // Delete folder from Cloudinary
-            try {
-                $this->ensureCloudinary()->adminApi()->deleteFolder("user_photos/{$user->id}");
-            } catch (\Exception $e) {
-                Log::warning('Failed to delete Cloudinary folder: ' . $e->getMessage());
             }
 
             // Delete all records from database
             UserPhoto::where('user_id', $user->id)->delete();
         } catch (\Exception $e) {
-            Log::error('Delete all photos error: ' . $e->getMessage());
-            throw new \Exception('Failed to delete user photos: ' . $e->getMessage());
+            Log::error('Delete all photos error: '.$e->getMessage());
+            throw new \Exception('Failed to delete user photos: '.$e->getMessage());
+        }
+    }
+
+    private function deleteStoredPhoto(UserPhoto $photo): void
+    {
+        $key = $photo->storage_key;
+
+        if (! $key) {
+            return;
+        }
+
+        $s3Disk = Storage::disk('s3');
+        if ($s3Disk->exists($key)) {
+            $s3Disk->delete($key);
+
+            return;
+        }
+
+        // Legacy fallback for old local photos that may still exist.
+        $publicDisk = Storage::disk('public');
+        if ($publicDisk->exists($key)) {
+            $publicDisk->delete($key);
         }
     }
 
@@ -162,8 +131,8 @@ class PhotoService
                 'updated_at' => now(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Set profile photo error: ' . $e->getMessage());
-            throw new \Exception('Failed to set profile photo: ' . $e->getMessage());
+            Log::error('Set profile photo error: '.$e->getMessage());
+            throw new \Exception('Failed to set profile photo: '.$e->getMessage());
         }
     }
 }

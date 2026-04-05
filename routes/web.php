@@ -1,26 +1,26 @@
 <?php
 
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\PasswordResetController;
-use App\Http\Controllers\EmailVerificationController;
-use App\Http\Controllers\Dashboard\FacultyDashboardController;
-use App\Http\Controllers\Dashboard\DeanDashboardController;
-use App\Http\Controllers\Dashboard\AdminDashboardController;
-use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\Admin\PhotoController;
 use App\Http\Controllers\Admin\DatabaseManagementController;
-use App\Http\Controllers\Admin\RoleDesignationController;
 use App\Http\Controllers\Admin\NotificationDeadlineController;
-use App\Http\Controllers\Faculty\IpcrTemplateController;
-use App\Http\Controllers\Faculty\IpcrSubmissionController;
-use App\Http\Controllers\Faculty\IpcrExportController;
-use App\Http\Controllers\Faculty\IpcrSavedCopyController;
-use App\Http\Controllers\Faculty\OpcrTemplateController;
-use App\Http\Controllers\Faculty\OpcrSubmissionController;
-use App\Http\Controllers\Faculty\OpcrSavedCopyController;
-use App\Http\Controllers\Faculty\OpcrExportController;
-use App\Http\Controllers\Faculty\IpcrImportController;
+use App\Http\Controllers\Admin\PhotoController;
+use App\Http\Controllers\Admin\RoleDesignationController;
+use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Dashboard\AdminDashboardController;
+use App\Http\Controllers\Dashboard\DeanDashboardController;
+use App\Http\Controllers\Dashboard\FacultyDashboardController;
 use App\Http\Controllers\Dean\DeanReviewController;
+use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\Faculty\IpcrExportController;
+use App\Http\Controllers\Faculty\IpcrImportController;
+use App\Http\Controllers\Faculty\IpcrSavedCopyController;
+use App\Http\Controllers\Faculty\IpcrSubmissionController;
+use App\Http\Controllers\Faculty\IpcrTemplateController;
+use App\Http\Controllers\Faculty\OpcrExportController;
+use App\Http\Controllers\Faculty\OpcrSavedCopyController;
+use App\Http\Controllers\Faculty\OpcrSubmissionController;
+use App\Http\Controllers\Faculty\OpcrTemplateController;
+use App\Http\Controllers\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -78,7 +78,6 @@ Route::post('/email/verification/send', [EmailVerificationController::class, 'se
 Route::post('/email/verification/verify', [EmailVerificationController::class, 'verifyCode'])
     ->name('verification.verify')
     ->middleware('auth');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -226,7 +225,7 @@ Route::get('/faculty/ipcr/templates/{id}/export', [IpcrExportController::class, 
 // IPCR/OPCR Import Route
 Route::post('/faculty/ipcr/import', [IpcrImportController::class, 'import'])
     ->name('faculty.ipcr.import')
-    ->middleware(['auth', 'role:faculty']);
+    ->middleware(['auth', 'role:faculty,director']);
 
 // IPCR Saved Copy Routes
 Route::get('/faculty/ipcr/saved-copies', [IpcrSavedCopyController::class, 'index'])
@@ -249,90 +248,90 @@ Route::delete('/faculty/ipcr/saved-copies/{id}', [IpcrSavedCopyController::class
     ->name('faculty.ipcr.saved-copies.destroy')
     ->middleware(['auth', 'role:faculty', 'permission:faculty.ipcr.saved-copies']);
 
-// OPCR Template Routes (Dean only)
+// OPCR Template Routes (Dean and Director)
 Route::get('/faculty/opcr/templates', [OpcrTemplateController::class, 'index'])
     ->name('faculty.opcr.templates.index')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::post('/faculty/opcr/store', [OpcrTemplateController::class, 'store'])
     ->name('faculty.opcr.store')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::post('/faculty/opcr/templates/from-saved-copy', [OpcrTemplateController::class, 'storeFromSavedCopy'])
     ->name('faculty.opcr.templates.from-saved-copy')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::post('/faculty/opcr/templates/{id}/save-copy', [OpcrTemplateController::class, 'saveCopy'])
     ->name('faculty.opcr.templates.save-copy')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::get('/faculty/opcr/templates/{id}', [OpcrTemplateController::class, 'show'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::delete('/faculty/opcr/templates/{id}', [OpcrTemplateController::class, 'destroy'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::put('/faculty/opcr/templates/{id}', [OpcrTemplateController::class, 'update'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
 Route::post('/faculty/opcr/templates/{id}/set-active', [OpcrTemplateController::class, 'setActive'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
-// OPCR Submission Routes (Dean only)
+// OPCR Submission Routes (Dean and Director)
 Route::post('/faculty/opcr/submissions', [OpcrSubmissionController::class, 'store'])
     ->name('faculty.opcr.submissions.store')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::get('/faculty/opcr/submissions/{id}', [OpcrSubmissionController::class, 'show'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::put('/faculty/opcr/submissions/{id}', [OpcrSubmissionController::class, 'update'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::post('/faculty/opcr/submissions/{id}/set-active', [OpcrSubmissionController::class, 'setActive'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::post('/faculty/opcr/submissions/{id}/deactivate', [OpcrSubmissionController::class, 'deactivate'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::post('/faculty/opcr/submissions/{id}/unsubmit', [OpcrSubmissionController::class, 'unsubmit'])
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::delete('/faculty/opcr/submissions/{id}', [OpcrSubmissionController::class, 'destroy'])
-    ->middleware(['auth', 'role:faculty,admin', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director,admin', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::get('/faculty/opcr/submissions/{id}/export', [OpcrExportController::class, 'export'])
     ->name('faculty.opcr.submissions.export')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.submissions']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.submissions,director.dashboard']);
 
 Route::get('/faculty/opcr/saved-copies/{id}/export', [OpcrExportController::class, 'exportSavedCopy'])
     ->name('faculty.opcr.saved-copies.export')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.saved-copies']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.saved-copies,director.dashboard']);
 
 Route::get('/faculty/opcr/templates/{id}/export', [OpcrExportController::class, 'exportTemplate'])
     ->name('faculty.opcr.templates.export')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.templates']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.templates,director.dashboard']);
 
-// OPCR Saved Copy Routes (Dean only)
+// OPCR Saved Copy Routes (Dean and Director)
 Route::get('/faculty/opcr/saved-copies', [OpcrSavedCopyController::class, 'index'])
     ->name('faculty.opcr.saved-copies.index')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.saved-copies']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.saved-copies,director.dashboard']);
 
 Route::post('/faculty/opcr/saved-copies', [OpcrSavedCopyController::class, 'store'])
     ->name('faculty.opcr.saved-copies.store')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.saved-copies']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.saved-copies,director.dashboard']);
 
 Route::get('/faculty/opcr/saved-copies/{id}', [OpcrSavedCopyController::class, 'show'])
     ->name('faculty.opcr.saved-copies.show')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.saved-copies']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.saved-copies,director.dashboard']);
 
 Route::put('/faculty/opcr/saved-copies/{id}', [OpcrSavedCopyController::class, 'update'])
     ->name('faculty.opcr.saved-copies.update')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.saved-copies']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.saved-copies,director.dashboard']);
 
 Route::delete('/faculty/opcr/saved-copies/{id}', [OpcrSavedCopyController::class, 'destroy'])
     ->name('faculty.opcr.saved-copies.destroy')
-    ->middleware(['auth', 'role:faculty', 'permission:dean.opcr.saved-copies']);
+    ->middleware(['auth', 'role:faculty,director', 'permission:dean.opcr.saved-copies,director.dashboard']);
 
 // Supporting Document Routes
 Route::get('/faculty/supporting-documents', [\App\Http\Controllers\Faculty\SupportingDocumentController::class, 'index'])
@@ -354,7 +353,6 @@ Route::put('/faculty/supporting-documents/{id}/rename', [\App\Http\Controllers\F
 Route::get('/faculty/supporting-documents/{id}/download', [\App\Http\Controllers\Faculty\SupportingDocumentController::class, 'download'])
     ->name('faculty.supporting-documents.download')
     ->middleware(['auth', 'role:faculty', 'permission:faculty.supporting-documents']);
-
 
 /*
 |--------------------------------------------------------------------------
@@ -387,7 +385,6 @@ Route::post('/dean/review/calibrations', [DeanReviewController::class, 'saveCali
     ->name('dean.review.calibrations.save')
     ->middleware(['auth', 'role:dean']);
 
-
 /*
 |--------------------------------------------------------------------------
 | Director Dashboard Routes
@@ -399,7 +396,6 @@ Route::get('/director/dashboard', function () {
 })
     ->name('director.dashboard')
     ->middleware(['auth', 'role:director', 'permission:director.dashboard']);
-
 
 /*
 |--------------------------------------------------------------------------
@@ -425,7 +421,6 @@ Route::middleware(['auth', 'role:admin,hr', 'permission:admin.users.manage'])
             ->name('users.showJson');
     });
 
-
 /*
 |--------------------------------------------------------------------------
 | Admin Panel Routes
@@ -437,13 +432,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin/panel')->name('admin.')
     Route::middleware(['permission:admin.photos.manage'])->group(function () {
         Route::post('users/{user}/photo/upload', [PhotoController::class, 'upload'])
             ->name('users.photo.upload');
-        
+
         Route::delete('users/{user}/photos/{photo}', [PhotoController::class, 'delete'])
             ->name('users.photo.delete');
-        
+
         Route::patch('users/{user}/photos/{photo}/set-profile', [PhotoController::class, 'setAsProfile'])
             ->name('users.photo.setProfile');
-        
+
         Route::get('users/{user}/photos', [PhotoController::class, 'getUserPhotos'])
             ->name('users.photos.get');
     });

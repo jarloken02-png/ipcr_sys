@@ -64,7 +64,8 @@ Update `.env` with local database and service credentials:
 - APP_NAME, APP_ENV, APP_DEBUG, APP_URL
 - DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 - MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_ENCRYPTION, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
-- CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_URL
+- AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_BUCKET, AWS_ENDPOINT, AWS_URL, AWS_USE_PATH_STYLE_ENDPOINT
+- BACKUP_DIRECTORY, MEDIA_URL_TTL_MINUTES
 
 Recommended local database values:
 
@@ -109,22 +110,26 @@ Default seeded accounts (password is `password`):
 - faculty
 - faculty2
 
-## 8. Create Cloudinary Account (for photo storage)
-1. Go to https://cloudinary.com and create an account.
-2. In Dashboard, copy:
-   - Cloud Name
-   - API Key
-   - API Secret
-3. Set these in `.env`:
+## 8. Create Cloudflare R2 Bucket (for media storage)
+1. Go to Cloudflare Dashboard and open R2.
+2. Create a bucket for media files.
+3. Create R2 API credentials (access key and secret key).
+4. Copy your account R2 endpoint and bucket name.
+5. Set these in `.env`:
 
 ```env
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-CLOUDINARY_URL=cloudinary://your_api_key:your_api_secret@your_cloud_name
+AWS_ACCESS_KEY_ID=your_r2_access_key
+AWS_SECRET_ACCESS_KEY=your_r2_secret_key
+AWS_DEFAULT_REGION=auto
+AWS_BUCKET=your_r2_bucket_name
+AWS_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+AWS_URL=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+BACKUP_DIRECTORY=backups
+MEDIA_URL_TTL_MINUTES=30
 ```
 
-4. Save `.env` and clear config cache if needed:
+6. Save `.env` and clear config cache if needed:
 
 ```powershell
 php artisan config:clear
@@ -195,10 +200,15 @@ MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=your_verified_sender@example.com
 MAIL_FROM_NAME="University of Rizal System Binangonan"
 
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-CLOUDINARY_URL=cloudinary://your_api_key:your_api_secret@your_cloud_name
+AWS_ACCESS_KEY_ID=your_r2_access_key
+AWS_SECRET_ACCESS_KEY=your_r2_secret_key
+AWS_DEFAULT_REGION=auto
+AWS_BUCKET=your_r2_bucket_name
+AWS_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+AWS_URL=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+BACKUP_DIRECTORY=backups
+MEDIA_URL_TTL_MINUTES=30
 ```
 
 Notes:
@@ -228,7 +238,7 @@ railway ssh -s <web-service-name> -e production "php artisan storage:link --forc
 - Open Railway domain.
 - Test login page and dashboard redirection.
 - Verify DB-backed features (users, reports, backups).
-- Check file upload and email flows (Cloudinary and Brevo).
+- Check file upload and email flows (Cloudflare R2 and Brevo).
 
 ## 11. Deployment Notes Learned in This Session
 - `railway run` executes commands locally with Railway env variables injected.

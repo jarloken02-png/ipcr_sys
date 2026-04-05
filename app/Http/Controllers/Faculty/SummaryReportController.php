@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers\Faculty;
 
-use App\Models\User;
-use App\Models\Department;
-use App\Models\Designation;
+use App\Http\Controllers\Controller;
+use App\Models\AdminNotification;
 use App\Models\DeanCalibration;
 use App\Models\DeanDirectorSummaryOverride;
-use App\Models\AdminNotification;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\IpcrSubmission;
 use App\Models\OpcrSubmission;
 use App\Models\Role;
 use App\Models\SupportingDocument;
+use App\Models\User;
 use App\Services\ActivityLogService;
 use App\Services\DeanDirectorSummaryExportService;
 use App\Services\FacultySummaryExportService;
@@ -22,7 +23,6 @@ use DOMXPath;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use App\Http\Controllers\Controller;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -366,8 +366,8 @@ class SummaryReportController extends Controller
             ->values();
 
         $schoolYears = IpcrSubmission::whereHas('user.userRoles', function ($query) {
-                $query->where('role', 'dean');
-            })
+            $query->where('role', 'dean');
+        })
             ->whereHas('deanCalibrations', function ($query) {
                 $query->where('status', 'calibrated');
             })
@@ -377,8 +377,8 @@ class SummaryReportController extends Controller
             ->pluck('school_year');
 
         $semesters = IpcrSubmission::whereHas('user.userRoles', function ($query) {
-                $query->where('role', 'dean');
-            })
+            $query->where('role', 'dean');
+        })
             ->whereHas('deanCalibrations', function ($query) {
                 $query->where('status', 'calibrated');
             })
@@ -424,10 +424,10 @@ class SummaryReportController extends Controller
                 $departmentCode = $user->department?->code;
                 $roleLabel = $isDirector
                     ? 'Campus Director'
-                    : 'Dean, ' . $departmentName;
+                    : 'Dean, '.$departmentName;
                 $roleLabelShort = $isDirector
                     ? 'Campus Director'
-                    : 'Dean, ' . ($departmentCode ?: $departmentName);
+                    : 'Dean, '.($departmentCode ?: $departmentName);
 
                 return [
                     'user_id' => $user->id,
@@ -446,9 +446,9 @@ class SummaryReportController extends Controller
                 ];
             })
             ->sortBy([
-                fn(array $row) => $row['is_director'] ? 0 : 1,
-                fn(array $row) => $row['department_code'] ?? 'ZZZ',
-                fn(array $row) => $row['employee_name'],
+                fn (array $row) => $row['is_director'] ? 0 : 1,
+                fn (array $row) => $row['department_code'] ?? 'ZZZ',
+                fn (array $row) => $row['employee_name'],
             ])
             ->values();
     }
@@ -458,7 +458,7 @@ class SummaryReportController extends Controller
      */
     public function updateDeanDirectorScores(Request $request, User $user)
     {
-        if (!$user->hasAnyRole(['dean', 'director'])) {
+        if (! $user->hasAnyRole(['dean', 'director'])) {
             abort(404);
         }
 
@@ -488,9 +488,9 @@ class SummaryReportController extends Controller
             })
             ->toArray();
 
-        $hasAnyValue = collect($normalized)->contains(fn($value) => $value !== null);
+        $hasAnyValue = collect($normalized)->contains(fn ($value) => $value !== null);
 
-        if (!$hasAnyValue) {
+        if (! $hasAnyValue) {
             DeanDirectorSummaryOverride::where('user_id', $user->id)->delete();
         } else {
             DeanDirectorSummaryOverride::updateOrCreate(
@@ -545,7 +545,7 @@ class SummaryReportController extends Controller
                 ['record_count' => $rows->count()]
             );
 
-            $downloadName = 'Dean_Director_Summary_' . now()->format('Ymd_His') . '.xlsx';
+            $downloadName = 'Dean_Director_Summary_'.now()->format('Ymd_His').'.xlsx';
 
             return response()->download($filePath, $downloadName)->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
@@ -716,7 +716,7 @@ class SummaryReportController extends Controller
                 ]
             );
 
-            $downloadName = 'IPCR-Summary-of-Performance-Rating-URSB_' . now()->year . '.xlsx';
+            $downloadName = 'IPCR-Summary-of-Performance-Rating-URSB_'.now()->year.'.xlsx';
 
             return response()->download($combinedFilePath, $downloadName)->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
@@ -728,7 +728,7 @@ class SummaryReportController extends Controller
             ]);
 
             $fallbackCategory = (string) $request->query('category', 'faculty');
-            if (!in_array($fallbackCategory, ['faculty', 'staff', 'dean-director'], true)) {
+            if (! in_array($fallbackCategory, ['faculty', 'staff', 'dean-director'], true)) {
                 $fallbackCategory = 'faculty';
             }
 
@@ -753,7 +753,7 @@ class SummaryReportController extends Controller
             $departments = Department::orderBy('code')->get();
             $scopeDepartments = $activeDepartment === 'all'
                 ? $departments
-                : $departments->filter(fn($department) => $department->code === $activeDepartment)->values();
+                : $departments->filter(fn ($department) => $department->code === $activeDepartment)->values();
 
             $excludedRoles = ['dean', 'admin', 'hr', 'director'];
             $baseQuery = User::with(['department', 'designation', 'userRoles'])
@@ -840,7 +840,7 @@ class SummaryReportController extends Controller
             );
 
             $departmentSuffix = $activeDepartment === 'all' ? 'All_Departments' : strtoupper($activeDepartment);
-            $downloadName = 'Faculty_Summary_' . $departmentSuffix . '_' . now()->format('Ymd_His') . '.xlsx';
+            $downloadName = 'Faculty_Summary_'.$departmentSuffix.'_'.now()->format('Ymd_His').'.xlsx';
 
             return response()->download($filePath, $downloadName)->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
@@ -924,7 +924,7 @@ class SummaryReportController extends Controller
                 ]
             );
 
-            $downloadName = 'Staff_Summary_' . now()->format('Ymd_His') . '.xlsx';
+            $downloadName = 'Staff_Summary_'.now()->format('Ymd_His').'.xlsx';
 
             return response()->download($filePath, $downloadName)->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
@@ -974,12 +974,11 @@ class SummaryReportController extends Controller
             ->orderByDesc('created_at')
             ->get()
             ->filter(function (SupportingDocument $document) {
-                $parsedUrl = parse_url((string) $document->path);
-                $host = strtolower((string) ($parsedUrl['host'] ?? ''));
-
-                return in_array($host, ['res.cloudinary.com', 'cloudinary.com'], true);
+                return trim((string) ($document->path ?: $document->filename)) !== '';
             })
-            ->unique('path')
+            ->unique(function (SupportingDocument $document) {
+                return $document->storage_key ?: $document->path;
+            })
             ->map(function (SupportingDocument $document) {
                 return [
                     'id' => $document->id,
@@ -989,7 +988,7 @@ class SummaryReportController extends Controller
                     'file_size_human' => $document->file_size_human,
                     'created_at' => $document->created_at,
                     'created_at_display' => $document->created_at?->format('M d, Y h:i A'),
-                    'path' => $document->path,
+                    'path' => $document->file_url,
                 ];
             })
             ->groupBy('so_label')
@@ -997,7 +996,7 @@ class SummaryReportController extends Controller
 
         ActivityLogService::log(
             'hr_viewed_dean_ipcr_submission',
-            'Viewed calibrated dean IPCR submission: ' . $submission->title,
+            'Viewed calibrated dean IPCR submission: '.$submission->title,
             $submission
         );
 
@@ -1029,12 +1028,12 @@ class SummaryReportController extends Controller
 
             ActivityLogService::log(
                 'hr_exported_dean_ipcr_submission',
-                'Exported calibrated dean IPCR submission: ' . $submission->title,
+                'Exported calibrated dean IPCR submission: '.$submission->title,
                 $submission
             );
 
             $safeUser = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) ($submission->user?->name ?? 'Dean'));
-            $downloadName = 'Dean_IPCR_' . $safeUser . '_' . $submission->school_year . '.xlsx';
+            $downloadName = 'Dean_IPCR_'.$safeUser.'_'.$submission->school_year.'.xlsx';
 
             return response()->download($filePath, $downloadName)->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
@@ -1062,7 +1061,7 @@ class SummaryReportController extends Controller
                 ->where('status', 'calibrated')
                 ->exists();
 
-        if (!$isDeanSubmission || !$hasCalibratedResult) {
+        if (! $isDeanSubmission || ! $hasCalibratedResult) {
             abort(404);
         }
     }
@@ -1075,7 +1074,7 @@ class SummaryReportController extends Controller
         $mergedSpreadsheet = null;
 
         foreach ($sourceFiles as $index => $sourceFile) {
-            if (!is_string($sourceFile) || $sourceFile === '' || !is_file($sourceFile)) {
+            if (! is_string($sourceFile) || $sourceFile === '' || ! is_file($sourceFile)) {
                 continue;
             }
 
@@ -1089,6 +1088,7 @@ class SummaryReportController extends Controller
             if ($mergedSpreadsheet === null) {
                 $sourceSheet->setTitle($targetTitle);
                 $mergedSpreadsheet = $sourceSpreadsheet;
+
                 continue;
             }
 
@@ -1104,11 +1104,11 @@ class SummaryReportController extends Controller
         }
 
         $outputDir = storage_path('app/exports');
-        if (!is_dir($outputDir)) {
+        if (! is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
 
-        $outputFilePath = $outputDir . DIRECTORY_SEPARATOR . 'Summary_Reports_All_' . now()->format('Ymd_His') . '.xlsx';
+        $outputFilePath = $outputDir.DIRECTORY_SEPARATOR.'Summary_Reports_All_'.now()->format('Ymd_His').'.xlsx';
 
         $writer = new Xlsx($mergedSpreadsheet);
         $writer->save($outputFilePath);
@@ -1148,11 +1148,11 @@ class SummaryReportController extends Controller
             ->orderByDesc('submitted_at')
             ->first();
 
-        if (!$latestOpcr) {
+        if (! $latestOpcr) {
             return $latestIpcr;
         }
 
-        if (!$latestIpcr) {
+        if (! $latestIpcr) {
             return $latestOpcr;
         }
 
@@ -1164,7 +1164,7 @@ class SummaryReportController extends Controller
      */
     private function applyDeanDirectorOverride(array $calculatedScores, ?DeanDirectorSummaryOverride $override): array
     {
-        if (!$override) {
+        if (! $override) {
             $calculatedScores['is_manual'] = false;
 
             return $calculatedScores;
@@ -1174,7 +1174,7 @@ class SummaryReportController extends Controller
             || $override->core_score !== null
             || $override->support_score !== null;
 
-        if (!$hasOverrideValue) {
+        if (! $hasOverrideValue) {
             $calculatedScores['is_manual'] = false;
 
             return $calculatedScores;
@@ -1229,11 +1229,11 @@ class SummaryReportController extends Controller
             'support-function' => [],
         ];
 
-        $wrappedHtml = '<table><tbody>' . $tableBodyHtml . '</tbody></table>';
+        $wrappedHtml = '<table><tbody>'.$tableBodyHtml.'</tbody></table>';
 
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         libxml_use_internal_errors(true);
-        @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $wrappedHtml, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$wrappedHtml, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
 
         $xpath = new DOMXPath($dom);
@@ -1245,20 +1245,23 @@ class SummaryReportController extends Controller
 
             if (str_contains($className, 'bg-green-100')) {
                 $currentSection = 'strategic-objectives';
+
                 continue;
             }
 
             if (str_contains($className, 'bg-purple-100')) {
                 $currentSection = 'core-functions';
+
                 continue;
             }
 
             if (str_contains($className, 'bg-orange-100')) {
                 $currentSection = 'support-function';
+
                 continue;
             }
 
-            if (!$currentSection || str_contains($className, 'bg-blue-100') || str_contains($className, 'bg-gray-100')) {
+            if (! $currentSection || str_contains($className, 'bg-blue-100') || str_contains($className, 'bg-gray-100')) {
                 continue;
             }
 
@@ -1360,10 +1363,19 @@ class SummaryReportController extends Controller
             return null;
         }
 
-        if ($score >= 4.50) return 'Outstanding';
-        if ($score >= 3.50) return 'Very Satisfactory';
-        if ($score >= 2.50) return 'Satisfactory';
-        if ($score >= 1.50) return 'Unsatisfactory';
+        if ($score >= 4.50) {
+            return 'Outstanding';
+        }
+        if ($score >= 3.50) {
+            return 'Very Satisfactory';
+        }
+        if ($score >= 2.50) {
+            return 'Satisfactory';
+        }
+        if ($score >= 1.50) {
+            return 'Unsatisfactory';
+        }
+
         return 'Poor';
     }
 }

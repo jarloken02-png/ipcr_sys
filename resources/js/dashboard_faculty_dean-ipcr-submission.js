@@ -210,7 +210,7 @@ const supportingDocumentsBySo = deanIpcrSubmissionConfig.supportingDocumentsBySo
                 return '#';
             }
 
-            // Force attachment disposition for Cloudinary assets.
+            // Force attachment disposition for legacy Cloudinary assets.
             if (rawUrl.indexOf('/upload/') !== -1) {
                 return rawUrl.replace('/upload/', '/upload/fl_attachment/');
             }
@@ -317,7 +317,7 @@ const supportingDocumentsBySo = deanIpcrSubmissionConfig.supportingDocumentsBySo
                         thumbOrIcon +
                         '<div class="flex-1 min-w-0">' +
                             '<p class="text-sm font-semibold text-gray-800 truncate" title="' + safeName + '">' + nameDisplay + '</p>' +
-                            '<p class="text-xs text-gray-400 mt-0.5">' + (meta.join(' - ') || 'Cloudinary file') + '</p>' +
+                            '<p class="text-xs text-gray-400 mt-0.5">' + (meta.join(' - ') || 'Uploaded file') + '</p>' +
                             '<div class="mt-2 flex items-center gap-2">' +
                                 '<span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ' + typeUi.className + '">' + typeUi.label + '</span>' +
                                 (isDownloadOnly ? '<span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700">Download only</span>' : '') +

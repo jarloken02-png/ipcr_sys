@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class UserPhoto extends Model
 {
@@ -37,8 +38,59 @@ class UserPhoto extends Model
      */
     public function getPhotoUrlAttribute()
     {
-        // Return Cloudinary URL stored in 'path' column
-        return $this->path;
+        $reference = trim((string) ($this->path ?: $this->filename));
+
+        if ($reference === '') {
+            return '';
+        }
+
+        if ($this->isAbsoluteUrl($reference)) {
+            return $reference;
+        }
+
+        try {
+            return Storage::disk('s3')->temporaryUrl(
+                $reference,
+                now()->addMinutes((int) config('filesystems.media_url_ttl_minutes', 30))
+            );
+        } catch (\Throwable $e) {
+            // Fall through to non-signed URL options below.
+        }
+
+        try {
+            return Storage::disk('s3')->url($reference);
+        } catch (\Throwable $e) {
+            // Fall through to local legacy storage fallback.
+        }
+
+        if (Storage::disk('public')->exists($reference)) {
+            return asset('storage/'.ltrim($reference, '/'));
+        }
+
+        return $reference;
+    }
+
+    /**
+     * Resolve the object key used by current storage backends.
+     */
+    public function getStorageKeyAttribute(): ?string
+    {
+        $filename = trim((string) $this->filename);
+        if ($filename !== '' && ! $this->isAbsoluteUrl($filename)) {
+            return ltrim($filename, '/');
+        }
+
+        $path = trim((string) $this->path);
+        if ($path !== '' && ! $this->isAbsoluteUrl($path)) {
+            return ltrim($path, '/');
+        }
+
+        return null;
+    }
+
+    private function isAbsoluteUrl(string $value): bool
+    {
+        return str_starts_with($value, 'http://') || str_starts_with($value, 'https://');
     }
 
     /**

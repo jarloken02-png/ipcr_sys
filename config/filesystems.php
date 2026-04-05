@@ -18,6 +18,9 @@ return [
     // Backup SQL files are stored under this folder on the s3 disk (Cloudflare R2).
     'backup_prefix' => env('BACKUP_DIRECTORY', 'backups'),
 
+    // Signed URL lifetime used for media previews sourced from object storage.
+    'media_url_ttl_minutes' => (int) env('MEDIA_URL_TTL_MINUTES', 30),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

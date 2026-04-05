@@ -6,14 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserPhoto;
 use App\Services\PhotoService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PhotoController extends Controller
 {
-    public function __construct(private PhotoService $photoService)
-    {
-    }
+    public function __construct(private PhotoService $photoService) {}
 
     /**
      * Upload photo for user.
@@ -25,7 +23,7 @@ class PhotoController extends Controller
                 'photo' => 'required|image|mimes:jpeg,png,gif,webp|max:5120', // 5MB
             ]);
 
-            if (!$request->hasFile('photo')) {
+            if (! $request->hasFile('photo')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No file uploaded',
@@ -34,17 +32,12 @@ class PhotoController extends Controller
 
             $photo = $this->photoService->uploadPhoto($request->file('photo'), $user);
 
-            // Determine photo URL (Cloudinary or local storage)
-            $photoUrl = str_starts_with($photo->path, 'http') 
-                ? $photo->path 
-                : asset("storage/{$photo->path}");
-
             return response()->json([
                 'success' => true,
                 'message' => 'Photo uploaded successfully',
                 'photo' => [
                     'id' => $photo->id,
-                    'url' => $photoUrl,
+                    'url' => $photo->photo_url,
                     'filename' => $photo->filename,
                 ],
             ]);
@@ -121,14 +114,9 @@ class PhotoController extends Controller
             $photos = $user->photos()->get();
 
             $photosData = $photos->map(function ($photo) {
-                // Determine photo URL (Cloudinary or local storage)
-                $photoUrl = str_starts_with($photo->path, 'http') 
-                    ? $photo->path 
-                    : asset("storage/{$photo->path}");
-                
                 return [
                     'id' => $photo->id,
-                    'url' => $photoUrl,
+                    'url' => $photo->photo_url,
                     'filename' => $photo->filename,
                     'is_profile' => $photo->is_profile_photo,
                 ];
