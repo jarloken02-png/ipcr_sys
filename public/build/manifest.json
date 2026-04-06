@@ -27,7 +27,7 @@
     ]
   },
   "resources/css/auth_login.css": {
-    "file": "assets/auth_login-COBklFwo.css",
+    "file": "assets/auth_login-CqlRHMfF.css",
     "src": "resources/css/auth_login.css",
     "isEntry": true,
     "name": "auth_login",
@@ -36,7 +36,7 @@
     ]
   },
   "resources/css/auth_reset-password.css": {
-    "file": "assets/auth_reset-password-Tvfox8GG.css",
+    "file": "assets/auth_reset-password-Cz56b8qw.css",
     "src": "resources/css/auth_reset-password.css",
     "isEntry": true,
     "name": "auth_reset-password",
@@ -45,7 +45,7 @@
     ]
   },
   "resources/css/auth_verify-code.css": {
-    "file": "assets/auth_verify-code-CUmFgatj.css",
+    "file": "assets/auth_verify-code-n4vE6eqE.css",
     "src": "resources/css/auth_verify-code.css",
     "isEntry": true,
     "name": "auth_verify-code",
@@ -189,6 +189,12 @@
     "file": "assets/dashboard_faculty_my-ipcrs_page-hXE8Q6JC.js",
     "name": "dashboard_faculty_my-ipcrs_page",
     "src": "resources/js/dashboard_faculty_my-ipcrs_page.js",
+    "isEntry": true
+  },
+  "resources/js/dashboard_faculty_notifications-deadlines.js": {
+    "file": "assets/dashboard_faculty_notifications-deadlines-nuQJ21LZ.js",
+    "name": "dashboard_faculty_notifications-deadlines",
+    "src": "resources/js/dashboard_faculty_notifications-deadlines.js",
     "isEntry": true
   },
   "resources/js/dashboard_faculty_profile.js": {

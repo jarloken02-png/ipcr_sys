@@ -12,6 +12,7 @@ use App\Models\IpcrSubmission;
 use App\Models\OpcrSubmission;
 use App\Models\Role;
 use App\Models\SupportingDocument;
+use App\Models\UpcomingDeadline;
 use App\Models\User;
 use App\Services\ActivityLogService;
 use App\Services\DeanDirectorSummaryExportService;
@@ -35,7 +36,7 @@ class SummaryReportController extends Controller
     {
         $activeDepartment = $request->query('department', 'all');
         $requestedCategory = $request->query('category', 'faculty');
-        $activeCategory = in_array($requestedCategory, ['faculty', 'staff', 'dean-director', 'dean-ipcrs', 'user-management'], true) ? $requestedCategory : 'faculty';
+        $activeCategory = in_array($requestedCategory, ['faculty', 'staff', 'dean-director', 'dean-ipcrs', 'user-management', 'notifications-deadlines'], true) ? $requestedCategory : 'faculty';
         $regularStaffStatusOptions = ['Permanent', 'Casual', 'Contractual'];
         $emergencyStaffStatus = 'Emergency Laborer';
         $partTimeStatus = 'Part Time';
@@ -56,7 +57,7 @@ class SummaryReportController extends Controller
         $unreadCount = $notifications->whereNotIn('id', $readNotifIds)->count();
 
         // Staff and dean-focused views are always campus-wide.
-        if (in_array($activeCategory, ['staff', 'dean-director', 'dean-ipcrs', 'user-management'], true)) {
+        if (in_array($activeCategory, ['staff', 'dean-director', 'dean-ipcrs', 'user-management', 'notifications-deadlines'], true)) {
             $activeDepartment = 'all';
         }
 
@@ -81,6 +82,8 @@ class SummaryReportController extends Controller
         $userManagementInactiveUsers = 0;
         $userManagementRoles = [];
         $userManagementDesignations = collect();
+        $summaryAdminNotifications = collect();
+        $summaryUpcomingDeadlines = collect();
 
         if ($activeCategory === 'dean-ipcrs') {
             [
@@ -191,6 +194,36 @@ class SummaryReportController extends Controller
                 'userManagementInactiveUsers',
                 'userManagementRoles',
                 'userManagementDesignations'
+            ));
+        }
+
+        if ($activeCategory === 'notifications-deadlines') {
+            $summaryAdminNotifications = AdminNotification::whereNull('user_id')
+                ->orderByDesc('created_at')
+                ->get();
+
+            $summaryUpcomingDeadlines = UpcomingDeadline::orderBy('deadline_date')
+                ->get();
+
+            return view('dashboard.faculty.summary-reports', compact(
+                'users',
+                'emergencyUsers',
+                'partTimeUsers',
+                'deanDirectorRows',
+                'deanIpcrRows',
+                'deanIpcrFilters',
+                'deanIpcrDeans',
+                'deanIpcrDepartments',
+                'deanIpcrSchoolYears',
+                'deanIpcrSemesters',
+                'departments',
+                'activeDepartment',
+                'activeCategory',
+                'notifications',
+                'readNotifIds',
+                'unreadCount',
+                'summaryAdminNotifications',
+                'summaryUpcomingDeadlines'
             ));
         }
 

@@ -97,7 +97,7 @@ body.auth-page--login .auth-card__form {
     width: min(50vw, 700px);
     min-height: 100vh;
     margin-left: auto;
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.52);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-left: 1px solid rgba(255, 255, 255, 0.56);
@@ -135,14 +135,14 @@ body.auth-page--login .auth-card__form {
 .auth-university-name .uni-name {
     font-size: 0.95rem;
     font-weight: 800;
-    color: #1e3a5f;
+    color: #16365c;
     letter-spacing: 0.5px;
 }
 
 .auth-university-name .uni-campus {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #475569;
+    color: #1e293b;
     letter-spacing: 0.5px;
 }
 
@@ -166,14 +166,14 @@ body.auth-page--login .auth-card__form {
 .auth-card__form h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: #0d1b3e;
+    color: #0b1f3f;
     margin-bottom: 2rem;
     text-align: left;
 }
 
 .auth-card__form p.subtitle {
     font-size: 0.95rem;
-    color: #64748b;
+    color: #1f2937;
     margin-bottom: 2rem;
     margin-top: -1.25rem;
     text-align: left;
@@ -188,7 +188,7 @@ body.auth-page--login .auth-card__form {
     display: block;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #374151;
+    color: #111827;
     margin-bottom: 0.5rem;
 }
 
@@ -201,7 +201,7 @@ body.auth-page--login .auth-card__form {
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: #475569;
     font-size: 1rem;
     pointer-events: none;
 }
@@ -214,11 +214,11 @@ body.auth-page--login .auth-card__form {
     font-size: 0.95rem;
     background: #f8fafc;
     transition: all 0.2s ease;
-    color: #1e293b;
+    color: #0f172a;
 }
 
 .form-group input::placeholder {
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .form-group input:focus {
@@ -241,7 +241,7 @@ body.auth-page--login .auth-card__form {
     background: none;
     border: none;
     cursor: pointer;
-    color: #94a3b8;
+    color: #475569;
     font-size: 1rem;
     padding: 0.25rem;
     transition: color 0.2s;
@@ -265,7 +265,7 @@ body.auth-page--login .auth-card__form {
 
 .forgot-password a {
     font-size: 0.85rem;
-    color: #64748b;
+    color: #1e3a8a;
     text-decoration: none;
     transition: color 0.2s;
     font-weight: 500;
@@ -308,7 +308,7 @@ body.auth-page--login .auth-card__form {
 
 .back-link a {
     font-size: 0.9rem;
-    color: #64748b;
+    color: #1e3a8a;
     text-decoration: none;
     transition: color 0.2s;
     font-weight: 500;
@@ -419,7 +419,7 @@ body.auth-page--login .auth-card__form {
         padding: 3rem 2rem 2.5rem;
         justify-content: flex-start;
         z-index: 2;
-        background: rgba(255, 255, 255, 0.45);
+        background: rgba(255, 255, 255, 0.6);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.5);
@@ -498,7 +498,7 @@ body.auth-page--login .auth-card__form {
         margin-top: 0;
         margin-bottom: 2rem;
         text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
-        color: #1e293b;
+        color: #0f172a;
         font-weight: 500;
     }
 
@@ -592,30 +592,39 @@ body.auth-page--login .auth-card__form {
     color: #f8fafc;
 }
 .dark-mode .auth-university-name .uni-campus {
-    color: #cbd5e1;
+    color: #e2e8f0;
 }
 .dark-mode p.subtitle,
 .dark-mode .password-requirements {
-    color: #94a3b8;
+    color: #dbe4f0;
 }
 .dark-mode .form-group label {
-    color: #e2e8f0;
+    color: #f1f5f9;
 }
 .dark-mode .auth-tabs__btn {
-    color: #64748b;
+    color: #cbd5e1;
 }
 .dark-mode .auth-tabs__btn.active {
     color: #f8fafc;
     border-bottom-color: #3b82f6;
 }
 .dark-mode .forgot-pwd-link {
-    color: #94a3b8;
+    color: #dbe4f0;
 }
 .dark-mode .forgot-pwd-link:hover {
     color: #f1f5f9;
 }
+.dark-mode .forgot-password a {
+    color: #dbe4f0;
+}
+.dark-mode .forgot-password a:hover {
+    color: #eff6ff;
+}
 .dark-mode .back-link a {
-    color: #60a5fa;
+    color: #93c5fd;
+}
+.dark-mode .back-link a:hover {
+    color: #dbeafe;
 }
 
 /* Form Inputs */
@@ -630,15 +639,27 @@ body.auth-page--login .auth-card__form {
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
 }
 .dark-mode .auth-card__form input::placeholder {
-    color: #64748b;
+    color: #b7c3d4;
 }
 .dark-mode .input-icon,
 .dark-mode .toggle-btn {
-    color: #64748b;
+    color: #c4d0df;
 }
 .dark-mode .input-wrapper:focus-within .input-icon,
 .dark-mode .password-toggle:focus-within .input-icon {
     color: #3b82f6;
+}
+
+.dark-mode .error-message {
+    background: rgba(127, 29, 29, 0.35);
+    color: #fecaca;
+    border-color: rgba(252, 165, 165, 0.55);
+}
+
+.dark-mode .success-message {
+    background: rgba(22, 101, 52, 0.34);
+    color: #dcfce7;
+    border-color: rgba(134, 239, 172, 0.45);
 }
 
 /* Button & Checkbox */

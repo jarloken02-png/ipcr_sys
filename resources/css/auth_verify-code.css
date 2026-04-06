@@ -15,7 +15,7 @@
     border-radius: 12px;
     background: #f8f9fa;
     transition: all 0.3s ease;
-    color: #333;
+    color: #0f172a;
 }
 
 .code-input:focus {
@@ -45,7 +45,7 @@
 
 .code-description {
     text-align: center;
-    color: #666;
+    color: #1f2937;
     font-size: 14px;
     margin-bottom: 10px;
 }
@@ -63,13 +63,13 @@
 }
 
 .resend-section p {
-    color: #888;
+    color: #1f2937;
     font-size: 13px;
     margin-bottom: 10px;
 }
 
 .timer {
-    color: #666;
+    color: #1f2937;
     font-size: 14px;
     margin-top: 15px;
 }
@@ -91,4 +91,56 @@
     background: #eff6ff;
     color: #1e40af;
     border-color: #bfdbfe;
+}
+
+.dark-mode .code-input {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(148, 163, 184, 0.5);
+    color: #f8fafc;
+}
+
+.dark-mode .code-input:focus {
+    border-color: #60a5fa;
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+}
+
+.dark-mode .code-input.filled {
+    border-color: #60a5fa;
+    background: rgba(37, 99, 235, 0.25);
+}
+
+.dark-mode .code-input.error {
+    border-color: #f87171;
+    background: rgba(220, 38, 38, 0.24);
+}
+
+.dark-mode .code-description {
+    color: #dbe4f0;
+}
+
+.dark-mode .email-highlight {
+    color: #93c5fd;
+}
+
+.dark-mode .resend-section {
+    border-top-color: rgba(148, 163, 184, 0.35);
+}
+
+.dark-mode .resend-section p {
+    color: #cbd5e1;
+}
+
+.dark-mode .timer {
+    color: #dbe4f0;
+}
+
+.dark-mode .timer span {
+    color: #93c5fd;
+}
+
+.dark-mode .success-message {
+    background: rgba(30, 64, 175, 0.22);
+    color: #dbeafe;
+    border-color: rgba(147, 197, 253, 0.45);
 }

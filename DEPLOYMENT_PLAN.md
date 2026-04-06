@@ -63,7 +63,8 @@ Update `.env` with local database and service credentials:
 
 - APP_NAME, APP_ENV, APP_DEBUG, APP_URL
 - DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-- MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_ENCRYPTION, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
+- BREVO_API_KEY, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
+- Optional SMTP fallback: MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_ENCRYPTION
 - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_BUCKET, AWS_ENDPOINT, AWS_URL, AWS_USE_PATH_STYLE_ENDPOINT
 - BACKUP_DIRECTORY, MEDIA_URL_TTL_MINUTES
 
@@ -135,11 +136,19 @@ MEDIA_URL_TTL_MINUTES=30
 php artisan config:clear
 ```
 
-## 9. Create Brevo Account (for email and verification flows)
+## 9. Configure Brevo (BREVO_API_KEY First)
 1. Go to https://www.brevo.com and create an account.
 2. Verify sender identity/domain in Brevo.
-3. Create SMTP key in Brevo Settings.
-4. Set mail values in `.env`:
+3. Create an API key in Brevo (SMTP/API -> API Keys).
+4. Set Brevo API and sender values in `.env`:
+
+```env
+BREVO_API_KEY=your_brevo_api_key
+MAIL_FROM_ADDRESS=your_verified_sender@example.com
+MAIL_FROM_NAME="University of Rizal System Binangonan"
+```
+
+5. Optional SMTP fallback (only needed if you still use Laravel SMTP mail transport for some flows):
 
 ```env
 MAIL_MAILER=smtp
@@ -148,11 +157,13 @@ MAIL_PORT=587
 MAIL_USERNAME=your_brevo_username
 MAIL_PASSWORD=your_brevo_smtp_key
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=your_verified_sender@example.com
-MAIL_FROM_NAME="University of Rizal System Binangonan"
 ```
 
-5. Test mail path with app flows (forgot password and email verification).
+6. Test email flows after config updates.
+
+Notes:
+- Password reset now uses `BREVO_API_KEY` through Brevo HTTP API.
+- Keep SMTP values populated if any notification path still uses Laravel mail transport.
 
 ## 10. Deploy to Railway (Flow We Used)
 This is the same deployment pattern that worked for us in this project session.
@@ -191,14 +202,17 @@ DB_DATABASE=${{MySQL.MYSQLDATABASE}}
 DB_USERNAME=${{MySQL.MYSQLUSER}}
 DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
 
+BREVO_API_KEY=your_brevo_api_key
+MAIL_FROM_ADDRESS=your_verified_sender@example.com
+MAIL_FROM_NAME="University of Rizal System Binangonan"
+
+# Optional SMTP fallback (keep if required by remaining mail-transport flows)
 MAIL_MAILER=smtp
 MAIL_HOST=smtp-relay.brevo.com
 MAIL_PORT=587
 MAIL_USERNAME=your_brevo_username
 MAIL_PASSWORD=your_brevo_smtp_key
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=your_verified_sender@example.com
-MAIL_FROM_NAME="University of Rizal System Binangonan"
 
 AWS_ACCESS_KEY_ID=your_r2_access_key
 AWS_SECRET_ACCESS_KEY=your_r2_secret_key

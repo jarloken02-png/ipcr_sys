@@ -292,6 +292,12 @@
                                 <svg class="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                 <span class="text-xs md:text-sm">User Management</span>
                             </a>
+
+                            <a href="{{ route('faculty.summary-reports', ['category' => 'notifications-deadlines', 'department' => 'all']) }}"
+                               class="flex shrink-0 items-center gap-2 md:gap-3 px-3 py-2 md:px-4 md:py-3 rounded-lg md:rounded-xl transition-colors {{ $activeCategory === 'notifications-deadlines' ? 'bg-blue-50 text-blue-600 font-semibold md:shadow-none shadow-sm' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600' }}">
+                                <svg class="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                <span class="text-xs md:text-sm">Notifications &amp; Deadlines</span>
+                            </a>
                         </div>
                         
                         <!-- Mobile View for Dean IPCRs -->
@@ -307,6 +313,13 @@
                             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                             <span class="text-xs">User Management</span>
                         </a>
+
+                        <!-- Mobile View for Notifications & Deadlines -->
+                        <a href="{{ route('faculty.summary-reports', ['category' => 'notifications-deadlines', 'department' => 'all']) }}"
+                           class="md:hidden flex shrink-0 items-center gap-2 px-3 py-2 rounded-lg transition-colors {{ $activeCategory === 'notifications-deadlines' ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600' }}">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            <span class="text-xs">Notifications &amp; Deadlines</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -314,7 +327,7 @@
             <!-- Main Content Area -->
             <div class="flex-1 min-w-0">
                 <!-- Tabs -->
-                @if(!in_array($activeCategory, ['staff', 'dean-director', 'dean-ipcrs', 'user-management'], true))
+                @if(!in_array($activeCategory, ['staff', 'dean-director', 'dean-ipcrs', 'user-management', 'notifications-deadlines'], true))
                 <div class="mb-6">
                     <div class="flex space-x-2 overflow-x-auto pb-1">
                         <a href="{{ route('faculty.summary-reports', ['category' => $activeCategory, 'department' => 'all']) }}"
@@ -750,6 +763,8 @@
                 </div>
                 @elseif($activeCategory === 'user-management')
                 @include('dashboard.faculty.partials.user-management')
+                @elseif($activeCategory === 'notifications-deadlines')
+                @include('dashboard.faculty.partials.notifications-deadlines')
                 @else
                 @php
                     $summaryExportUrl = $activeCategory === 'staff'
@@ -1009,6 +1024,14 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
         Export All
     </a>
+    @endif
+
+    @if($activeCategory === 'user-management')
+    <script src="{{ Vite::asset('resources/js/dashboard_faculty_user-management.js') }}"></script>
+    @endif
+
+    @if($activeCategory === 'notifications-deadlines')
+    <script src="{{ Vite::asset('resources/js/dashboard_faculty_notifications-deadlines.js') }}"></script>
     @endif
 
     <script>

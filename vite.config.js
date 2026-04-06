@@ -26,6 +26,7 @@ export default defineConfig({
                 'resources/js/dashboard_faculty_my-ipcrs_page.js',
                 'resources/js/dashboard_faculty_summary-reports.js',
                 'resources/js/dashboard_faculty_user-management.js',
+                'resources/js/dashboard_faculty_notifications-deadlines.js',
                 'resources/js/dashboard_faculty_dean-ipcr-submission.js',
                 'resources/js/dashboard_director_index.js',
 

@@ -471,6 +471,48 @@ Route::middleware(['auth', 'role:admin,hr', 'permission:admin.users.manage'])
             ->name('users.showJson');
     });
 
+// Notifications & Deadlines Management (Admin + HR)
+Route::middleware(['auth', 'role:admin,hr'])
+    ->prefix('admin/panel')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('notifications', [NotificationDeadlineController::class, 'index'])
+            ->name('notifications.index');
+
+        // Notification CRUD
+        Route::post('notifications', [NotificationDeadlineController::class, 'storeNotification'])
+            ->name('notifications.store');
+
+        Route::put('notifications/{notification}', [NotificationDeadlineController::class, 'updateNotification'])
+            ->name('notifications.update');
+
+        Route::patch('notifications/{notification}/toggle', [NotificationDeadlineController::class, 'toggleNotification'])
+            ->name('notifications.toggle');
+
+        Route::delete('notifications/{notification}', [NotificationDeadlineController::class, 'destroyNotification'])
+            ->name('notifications.destroy');
+
+        // Deadline CRUD
+        Route::post('deadlines', [NotificationDeadlineController::class, 'storeDeadline'])
+            ->name('deadlines.store');
+
+        Route::put('deadlines/{deadline}', [NotificationDeadlineController::class, 'updateDeadline'])
+            ->name('deadlines.update');
+
+        Route::patch('deadlines/{deadline}/toggle', [NotificationDeadlineController::class, 'toggleDeadline'])
+            ->name('deadlines.toggle');
+
+        Route::delete('deadlines/{deadline}', [NotificationDeadlineController::class, 'destroyDeadline'])
+            ->name('deadlines.destroy');
+
+        // API endpoints for dashboard widgets
+        Route::get('api/notifications', [NotificationDeadlineController::class, 'apiNotifications'])
+            ->name('api.notifications');
+
+        Route::get('api/deadlines', [NotificationDeadlineController::class, 'apiDeadlines'])
+            ->name('api.deadlines');
+    });
+
 /*
 |--------------------------------------------------------------------------
 | Admin Panel Routes
@@ -565,40 +607,4 @@ Route::middleware(['auth', 'role:admin'])
                 ->name('role-management.designations.destroy');
         });
 
-        // Notifications & Deadlines Management
-        Route::get('notifications', [NotificationDeadlineController::class, 'index'])
-            ->name('notifications.index');
-
-        // Notification CRUD
-        Route::post('notifications', [NotificationDeadlineController::class, 'storeNotification'])
-            ->name('notifications.store');
-
-        Route::put('notifications/{notification}', [NotificationDeadlineController::class, 'updateNotification'])
-            ->name('notifications.update');
-
-        Route::patch('notifications/{notification}/toggle', [NotificationDeadlineController::class, 'toggleNotification'])
-            ->name('notifications.toggle');
-
-        Route::delete('notifications/{notification}', [NotificationDeadlineController::class, 'destroyNotification'])
-            ->name('notifications.destroy');
-
-        // Deadline CRUD
-        Route::post('deadlines', [NotificationDeadlineController::class, 'storeDeadline'])
-            ->name('deadlines.store');
-
-        Route::put('deadlines/{deadline}', [NotificationDeadlineController::class, 'updateDeadline'])
-            ->name('deadlines.update');
-
-        Route::patch('deadlines/{deadline}/toggle', [NotificationDeadlineController::class, 'toggleDeadline'])
-            ->name('deadlines.toggle');
-
-        Route::delete('deadlines/{deadline}', [NotificationDeadlineController::class, 'destroyDeadline'])
-            ->name('deadlines.destroy');
-
-        // API endpoints for dashboard widgets
-        Route::get('api/notifications', [NotificationDeadlineController::class, 'apiNotifications'])
-            ->name('api.notifications');
-
-        Route::get('api/deadlines', [NotificationDeadlineController::class, 'apiDeadlines'])
-            ->name('api.deadlines');
     });
