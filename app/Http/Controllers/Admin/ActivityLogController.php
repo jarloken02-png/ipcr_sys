@@ -21,6 +21,9 @@ class ActivityLogController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('action', 'like', "%{$search}%")
+                  ->orWhere('ip_address', 'like', "%{$search}%")
+                  ->orWhereRaw('CAST(properties AS CHAR) LIKE ?', ["%{$search}%"])
                   ->orWhereHas('user', function ($uq) use ($search) {
                       $uq->where('name', 'like', "%{$search}%")
                          ->orWhere('username', 'like', "%{$search}%");
@@ -73,6 +76,9 @@ class ActivityLogController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('action', 'like', "%{$search}%")
+                  ->orWhere('ip_address', 'like', "%{$search}%")
+                  ->orWhereRaw('CAST(properties AS CHAR) LIKE ?', ["%{$search}%"])
                   ->orWhereHas('user', function ($uq) use ($search) {
                       $uq->where('name', 'like', "%{$search}%")
                          ->orWhere('username', 'like', "%{$search}%");
@@ -99,39 +105,29 @@ class ActivityLogController extends Controller
         $fileName = 'activity_logs_' . date('Y-m-d_H-i-s') . '.txt';
 
         // Build header
-        $separator = str_repeat('=', 120);
+        $separator = str_repeat('=', 140);
         $content = "ACTIVITY LOGS EXPORT\n";
         $content .= "Generated: " . now()->format('F d, Y h:i:s A') . "\n";
         $content .= "Total Records: " . $logs->count() . "\n";
         $content .= $separator . "\n\n";
 
-        // Column header
-        $content .= str_pad('DATE', 14)
-            . str_pad('TIME', 14)
-            . str_pad('USER', 28)
-            . str_pad('ROLE', 18)
-            . str_pad('ACTION', 22)
-            . str_pad('DESCRIPTION', 50)
-            . 'IP ADDRESS' . "\n";
-        $content .= str_repeat('-', 120) . "\n";
-
-        // Rows
+        // Rows (detailed block format)
         foreach ($logs as $log) {
             $userName = $log->user ? $log->user->name : 'Unknown';
             $role     = $log->user ? $log->user->getPrimaryRole() : 'N/A';
-            $date     = $log->created_at->format('Y-m-d');
-            $time     = $log->created_at->format('h:i:s A');
-            $action   = ucfirst(str_replace('_', ' ', $log->action));
+            $dateTime = $log->created_at->format('Y-m-d h:i:s A');
+            $action   = $this->formatActionLabel((string) $log->action);
             $desc     = $log->description ?? '';
             $ip       = $log->ip_address ?? 'N/A';
 
-            $content .= str_pad($date, 14)
-                . str_pad($time, 14)
-                . str_pad(mb_substr($userName, 0, 26), 28)
-                . str_pad(mb_substr($role, 0, 16), 18)
-                . str_pad(mb_substr($action, 0, 20), 22)
-                . str_pad(mb_substr($desc, 0, 48), 50)
-                . $ip . "\n";
+            $content .= "Timestamp: {$dateTime}\n";
+            $content .= "User: {$userName}\n";
+            $content .= "Role: {$role}\n";
+            $content .= "Action: {$action}\n";
+            $content .= "Description: {$desc}\n";
+            $content .= "IP Address: {$ip}\n";
+
+            $content .= str_repeat('-', 140) . "\n";
         }
 
         $content .= "\n" . $separator . "\n";
@@ -151,5 +147,32 @@ class ActivityLogController extends Controller
         return response()->download($tempFile, $fileName, [
             'Content-Type' => 'text/plain',
         ])->deleteFileAfterSend(true);
+    }
+
+    private function formatActionLabel(string $action): string
+    {
+        return match ($action) {
+            'request_get', 'viewed' => 'Viewed Page',
+            'request_post', 'submitted' => 'Submitted Form',
+            'request_put', 'request_patch', 'updated' => 'Updated Record',
+            'request_delete', 'deleted' => 'Deleted Record',
+            'activity' => 'General Activity',
+            'login' => 'Signed In',
+            'logout' => 'Signed Out',
+            'login_failed' => 'Failed Sign In',
+            'created' => 'Created Record',
+            'toggled_active' => 'Changed Account Status',
+            'backup_created' => 'Created Backup',
+            'backup_restored' => 'Restored Backup',
+            'backup_deleted' => 'Deleted Backup',
+            'backup_uploaded' => 'Uploaded Backup',
+            'settings_updated' => 'Updated Settings',
+            'profile_updated' => 'Updated Profile',
+            'password_changed' => 'Changed Password',
+            'password_reset' => 'Reset Password',
+            'photo_uploaded' => 'Uploaded Photo',
+            'photo_deleted' => 'Deleted Photo',
+            default => ucfirst(str_replace('_', ' ', $action)),
+        };
     }
 }

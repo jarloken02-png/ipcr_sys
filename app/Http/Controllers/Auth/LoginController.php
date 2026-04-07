@@ -32,12 +32,32 @@ class LoginController extends Controller
         $user = User::where('username', $credentials['username'])->first();
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            ActivityLogService::log(
+                'login_failed',
+                'Failed login attempt: invalid credentials',
+                $user,
+                [
+                    'username' => $credentials['username'],
+                    'reason' => 'invalid_credentials',
+                ]
+            );
+
             return back()->withErrors([
                 'username' => 'Invalid username or password',
             ]);
         }
 
         if (!$user->is_active) {
+            ActivityLogService::log(
+                'login_failed',
+                'Failed login attempt: account is inactive',
+                $user,
+                [
+                    'username' => $credentials['username'],
+                    'reason' => 'inactive_account',
+                ]
+            );
+
             return back()->withErrors([
                 'username' => 'Your account is inactive',
             ]);
@@ -46,6 +66,16 @@ class LoginController extends Controller
         $primaryRole = $user->getPrimaryRole();
 
         if (!$primaryRole) {
+            ActivityLogService::log(
+                'login_failed',
+                'Failed login attempt: no role assigned to account',
+                $user,
+                [
+                    'username' => $credentials['username'],
+                    'reason' => 'missing_role',
+                ]
+            );
+
             return back()->withErrors([
                 'username' => 'No role assigned to your account. Please contact an administrator.',
             ]);
@@ -61,6 +91,17 @@ class LoginController extends Controller
 
             $permissionKey = $dashboardPermissionMap[$primaryRole] ?? null;
             if ($permissionKey && !$user->hasPermission($permissionKey)) {
+                ActivityLogService::log(
+                    'login_failed',
+                    'Failed login attempt: dashboard permission denied',
+                    $user,
+                    [
+                        'username' => $credentials['username'],
+                        'reason' => 'permission_denied',
+                        'required_permission' => $permissionKey,
+                    ]
+                );
+
                 return back()->withErrors([
                     'username' => 'Your account does not have dashboard access. Please contact an administrator.',
                 ]);

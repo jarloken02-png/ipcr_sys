@@ -15,6 +15,40 @@
 
 @section('content')
 
+    @php
+        $actionLabels = [
+            'request_get' => 'Viewed Page',
+            'request_post' => 'Submitted Form',
+            'request_put' => 'Updated Record',
+            'request_patch' => 'Updated Record',
+            'request_delete' => 'Deleted Record',
+            'viewed' => 'Viewed Page',
+            'submitted' => 'Submitted Form',
+            'updated' => 'Updated Record',
+            'deleted' => 'Deleted Record',
+            'activity' => 'General Activity',
+            'login' => 'Signed In',
+            'logout' => 'Signed Out',
+            'login_failed' => 'Failed Sign In',
+            'created' => 'Created Record',
+            'toggled_active' => 'Changed Account Status',
+            'backup_created' => 'Created Backup',
+            'backup_restored' => 'Restored Backup',
+            'backup_deleted' => 'Deleted Backup',
+            'backup_uploaded' => 'Uploaded Backup',
+            'settings_updated' => 'Updated Settings',
+            'profile_updated' => 'Updated Profile',
+            'password_changed' => 'Changed Password',
+            'password_reset' => 'Reset Password',
+            'photo_uploaded' => 'Uploaded Photo',
+            'photo_deleted' => 'Deleted Photo',
+        ];
+
+        $formatActionLabel = function ($action) use ($actionLabels) {
+            return $actionLabels[$action] ?? ucfirst(str_replace('_', ' ', $action));
+        };
+    @endphp
+
     {{-- Stat Cards --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6">
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:-translate-y-1 p-5 lg:p-6 transition-all duration-300 group">
@@ -95,7 +129,7 @@
                         <select name="action" class="block w-full pl-4 pr-10 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-900 dark:text-white transition-all appearance-none cursor-pointer hover:border-gray-300 dark:hover:border-gray-500">
                             <option value="">All Actions</option>
                             @foreach($actions as $a)
-                                <option value="{{ $a }}" {{ request('action') === $a ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $a)) }}</option>
+                                <option value="{{ $a }}" {{ request('action') === $a ? 'selected' : '' }}>{{ $formatActionLabel($a) }}</option>
                             @endforeach
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 dark:text-gray-500">
@@ -199,6 +233,9 @@
                                     $colors = [
                                         'login'            => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
                                         'logout'           => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',
+                                        'viewed'           => 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20',
+                                        'submitted'        => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-500/20',
+                                        'activity'         => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-300 dark:border-gray-500/20',
                                         'created'          => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
                                         'updated'          => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
                                         'deleted'          => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
@@ -211,13 +248,19 @@
                                         'profile_updated'  => 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20',
                                         'password_changed' => 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-500/10 dark:text-pink-400 dark:border-pink-500/20',
                                         'password_reset'   => 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 dark:border-fuchsia-500/20',
+                                        'login_failed'     => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
+                                        'request_get'      => 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20',
+                                        'request_post'     => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-500/20',
+                                        'request_put'      => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20',
+                                        'request_patch'    => 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/20',
+                                        'request_delete'   => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20',
                                         'photo_uploaded'   => 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
                                         'photo_deleted'    => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
                                     ];
                                     $badge = $colors[$log->action] ?? 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20';
                                 @endphp
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest font-bold border {{ $badge }}">
-                                    {{ str_replace('_', ' ', $log->action) }}
+                                    {{ $formatActionLabel($log->action) }}
                                 </span>
                             </td>
 
@@ -281,6 +324,9 @@
                             $colors = [
                                 'login'            => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
                                 'logout'           => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',
+                                'viewed'           => 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20',
+                                'submitted'        => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-500/20',
+                                'activity'         => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-300 dark:border-gray-500/20',
                                 'created'          => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
                                 'updated'          => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
                                 'deleted'          => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
@@ -293,13 +339,19 @@
                                 'profile_updated'  => 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20',
                                 'password_changed' => 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-500/10 dark:text-pink-400 dark:border-pink-500/20',
                                 'password_reset'   => 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 dark:border-fuchsia-500/20',
+                                'login_failed'     => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
+                                'request_get'      => 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20',
+                                'request_post'     => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-500/20',
+                                'request_put'      => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20',
+                                'request_patch'    => 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/20',
+                                'request_delete'   => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20',
                                 'photo_uploaded'   => 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
                                 'photo_deleted'    => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
                             ];
                             $badge = $colors[$log->action] ?? 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20';
                         @endphp
                         <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] tracking-widest uppercase font-bold border {{ $badge }}">
-                            {{ str_replace('_', ' ', $log->action) }}
+                            {{ $formatActionLabel($log->action) }}
                         </span>
                     </div>
 
@@ -376,7 +428,7 @@
                         <select name="action" class="w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
                             <option value="">All Actions</option>
                             @foreach($actions as $action)
-                            <option value="{{ $action }}" {{ request('action') === $action ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $action)) }}</option>
+                            <option value="{{ $action }}" {{ request('action') === $action ? 'selected' : '' }}>{{ $formatActionLabel($action) }}</option>
                             @endforeach
                         </select>
                     </div>
