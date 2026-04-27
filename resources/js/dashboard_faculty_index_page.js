@@ -712,32 +712,76 @@ function labelQetaInputsDean(tableBody) {
     });
 }
 
-// Compute and display overall average of all A values
+// Compute and display weighted overall average:
+// Strategic Objectives 35%, Core Functions 55%, Support Function 10%.
 function computeOverallAverage(tableBody) {
-    var allA = [];
+    var sectionScores = {
+        strategic: [],
+        core: [],
+        support: []
+    };
+
+    var currentSection = null;
+
     tableBody.querySelectorAll('tr').forEach(function(row) {
-        if (row.classList.contains('bg-green-100') ||
-            row.classList.contains('bg-purple-100') ||
-            row.classList.contains('bg-orange-100') ||
-            row.classList.contains('bg-blue-100') ||
+        if (row.classList.contains('bg-green-100')) {
+            currentSection = 'strategic';
+            return;
+        }
+
+        if (row.classList.contains('bg-purple-100')) {
+            currentSection = 'core';
+            return;
+        }
+
+        if (row.classList.contains('bg-orange-100')) {
+            currentSection = 'support';
+            return;
+        }
+
+        if (row.classList.contains('bg-gray-100') && row.querySelector('td[colspan]')) {
+            currentSection = null;
+            return;
+        }
+
+        if (row.classList.contains('bg-blue-100') ||
             row.classList.contains('bg-gray-100') ||
             row.querySelector('td[colspan]')) {
             return;
         }
+
+        if (!currentSection) {
+            return;
+        }
+
         var cells = row.querySelectorAll('td');
         if (cells.length >= 7) {
             var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
             if (aInput && aInput.value) {
                 var val = parseFloat(aInput.value);
-                if (!isNaN(val)) allA.push(val);
+                if (!isNaN(val) && val > 0) {
+                    sectionScores[currentSection].push(val);
+                }
             }
         }
     });
+
+    function average(values) {
+        if (!values || values.length === 0) return 0;
+        return values.reduce(function(sum, value) { return sum + value; }, 0) / values.length;
+    }
+
+    var strategicAvg = average(sectionScores.strategic);
+    var coreAvg = average(sectionScores.core);
+    var supportAvg = average(sectionScores.support);
+    var hasAnyScore = sectionScores.strategic.length > 0 || sectionScores.core.length > 0 || sectionScores.support.length > 0;
+
     var container = document.getElementById('deanPreviewOverallAvg');
     var valueEl = document.getElementById('deanPreviewAvgValue');
-    if (allA.length > 0) {
-        var avg = allA.reduce(function(s, v) { return s + v; }, 0) / allA.length;
-        valueEl.textContent = avg.toFixed(2);
+
+    if (hasAnyScore) {
+        var weightedAvg = (strategicAvg * 0.35) + (coreAvg * 0.55) + (supportAvg * 0.10);
+        valueEl.textContent = weightedAvg.toFixed(2);
         container.classList.remove('hidden');
     } else {
         container.classList.add('hidden');

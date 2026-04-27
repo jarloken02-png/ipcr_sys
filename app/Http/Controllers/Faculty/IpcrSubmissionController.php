@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\IpcrSubmission;
 use App\Models\SupportingDocument;
 use App\Services\ActivityLogService;
+use App\Services\SoLabelNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class IpcrSubmissionController extends Controller
 {
-    public function store(Request $request)
+    public function store(Request $request, SoLabelNormalizer $soLabelNormalizer)
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -26,11 +27,9 @@ class IpcrSubmissionController extends Controller
             'approved_by' => ['nullable', 'string', 'max:255'],
         ]);
 
-        // Decode so_count_json if it's a string
-        $soCountJson = $validated['so_count_json'] ?? null;
-        if (is_string($soCountJson)) {
-            $soCountJson = json_decode($soCountJson, true);
-        }
+        $normalizedPayload = $soLabelNormalizer->normalizeAndExtractCounts((string) ($validated['table_body_html'] ?? ''));
+        $validated['table_body_html'] = $normalizedPayload['table_body_html'];
+        $soCountJson = $normalizedPayload['so_count_json'];
 
         $userId = $request->user()->id;
         $submissionLock = Cache::lock("ipcr:submit:user:{$userId}", 10);
@@ -173,7 +172,7 @@ class IpcrSubmissionController extends Controller
         ]);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, SoLabelNormalizer $soLabelNormalizer)
     {
         try {
             $validated = $request->validate([
@@ -207,13 +206,15 @@ class IpcrSubmissionController extends Controller
                 $updateData['semester'] = $validated['semester'];
             }
             
-            // Table Body HTML
+            // Table Body HTML + normalized SO labels/counts
             if (array_key_exists('table_body_html', $validated)) {
-                $updateData['table_body_html'] = $validated['table_body_html'] ?? '';
+                $normalizedPayload = $soLabelNormalizer->normalizeAndExtractCounts((string) ($validated['table_body_html'] ?? ''));
+                $updateData['table_body_html'] = $normalizedPayload['table_body_html'];
+                $updateData['so_count_json'] = $normalizedPayload['so_count_json'];
             }
             
-            // SO Count JSON - handle both string and array
-            if (array_key_exists('so_count_json', $validated) && $validated['so_count_json'] !== null) {
+            // SO Count JSON - only apply directly when table_body_html is not being updated.
+            if (!array_key_exists('table_body_html', $validated) && array_key_exists('so_count_json', $validated) && $validated['so_count_json'] !== null) {
                 $soCount = $validated['so_count_json'];
                 // If it's a string, decode it
                 if (is_string($soCount)) {

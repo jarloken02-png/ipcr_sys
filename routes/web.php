@@ -435,6 +435,10 @@ Route::post('/dean/review/calibrations', [DeanReviewController::class, 'saveCali
     ->name('dean.review.calibrations.save')
     ->middleware(['auth', 'role:dean']);
 
+Route::post('/dean/review/calibrations/return', [DeanReviewController::class, 'returnSubmission'])
+    ->name('dean.review.calibrations.return')
+    ->middleware(['auth', 'role:dean', 'permission:dean.review.faculty']);
+
 /*
 |--------------------------------------------------------------------------
 | Director Dashboard Routes

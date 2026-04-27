@@ -1135,6 +1135,11 @@
             </table>
         </div>
 
+        <div class="px-2 sm:px-6 pb-3 sm:pb-4">
+            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Dean Feedback</label>
+            <textarea rows="5" readonly class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">{{ trim(implode("\n\n", array_filter([trim((string) ($returnedCalibration->dean_comment ?? '')), trim((string) ($returnedCalibration->dean_suggestion ?? ''))]))) }}</textarea>
+        </div>
+
         <!-- Footer -->
         <div class="px-2 sm:px-6 py-3 sm:py-4 bg-green-50 border-t border-green-200 sticky bottom-0 z-10">
             <div class="flex items-center justify-between">
@@ -1221,6 +1226,11 @@
                     <tbody id="deanPreviewTableBody"></tbody>
                 </table>
             </div>
+
+            <div class="px-2 sm:px-6 pb-3 sm:pb-4">
+                <label for="deanPreviewFeedback" class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Dean Feedback</label>
+                <textarea id="deanPreviewFeedback" rows="5" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Add comments and suggestions for the faculty member..."></textarea>
+            </div>
         </div>
 
         <!-- Footer -->
@@ -1228,7 +1238,7 @@
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-3">
                     <div id="deanPreviewOverallAvg" class="hidden text-xs sm:text-sm">
-                        <span class="text-gray-600">Overall Average Rating:</span>
+                        <span class="text-gray-600">Overall Average Rating (35/55/10):</span>
                         <span id="deanPreviewAvgValue" class="ml-1 font-bold text-indigo-700 text-sm sm:text-base"></span>
                     </div>
                     <span id="deanCalibrationStatus" class="hidden text-xs font-semibold px-2 py-1 rounded"></span>
@@ -1236,6 +1246,9 @@
                 <div class="flex items-center gap-2">
                     <button id="deanSaveDraftBtn" onclick="saveDeanCalibration('draft')" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-300 hover:bg-amber-100 transition">
                         <i class="fas fa-save mr-1"></i>Save Draft
+                    </button>
+                    <button id="deanReturnBtn" onclick="openDeanReturnModal()" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-red-700 bg-red-50 border border-red-300 hover:bg-red-100 transition">
+                        <i class="fas fa-undo-alt mr-1"></i>Return
                     </button>
                     <button id="deanCalibrateBtn" onclick="saveDeanCalibration('calibrated')" class="hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition">
                         <i class="fas fa-check-circle mr-1"></i>Calibrate
@@ -1301,6 +1314,36 @@
     </div>
 </div>
 
+<!-- Dean Return Modal -->
+<div id="deanReturnModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[2100] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full animate-scale-in z-10">
+        <div class="bg-red-50 border-b border-red-200 px-6 py-4 flex items-center gap-3">
+            <div class="bg-red-100 rounded-full w-12 h-12 flex items-center justify-center">
+                <i class="fas fa-reply text-red-600 text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Return IPCR?</h2>
+                <p class="text-sm text-gray-600">Provide the reason for returning this submission.</p>
+            </div>
+        </div>
+
+        <div class="px-6 py-4 space-y-2">
+            <label for="deanReturnReason" class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Reason for Rejection</label>
+            <textarea id="deanReturnReason" rows="5" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-2 focus:ring-red-500 focus:border-red-500" placeholder="Enter the reason for returning this IPCR..."></textarea>
+            <p class="text-xs text-gray-500">This message will be shown in the faculty member's notifications.</p>
+        </div>
+
+        <div class="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3 justify-end">
+            <button type="button" onclick="closeDeanReturnModal()" class="px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition text-sm">
+                Cancel
+            </button>
+            <button type="button" id="confirmDeanReturnBtn" onclick="submitDeanReturn()" class="px-4 py-2 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 transition flex items-center gap-2 text-sm">
+                <i class="fas fa-undo-alt"></i> <span>Return IPCR</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 var allFacultySubmissions = [];
 var allCalibrationSubmissions = [];
@@ -1327,6 +1370,10 @@ var currentDeanPreviewType = null;
             bgClass = 'bg-green-50';
         } else if (sub.calibration_status === 'draft') {
             calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded"><i class="fas fa-pencil-alt mr-0.5"></i>Draft</span></div>';
+        } else if (sub.calibration_status === 'returned') {
+            calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded"><i class="fas fa-reply mr-0.5"></i>Returned</span></div>';
+            borderClass = 'border-red-200';
+            bgClass = 'bg-red-50';
         } else {
             calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded">Pending</span></div>';
         }
@@ -1359,6 +1406,10 @@ var currentDeanPreviewType = null;
             bgClass = 'bg-green-50';
         } else if (sub.calibration_status === 'draft') {
             calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded"><i class="fas fa-pencil-alt mr-0.5"></i>Draft</span></div>';
+        } else if (sub.calibration_status === 'returned') {
+            calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded"><i class="fas fa-reply mr-0.5"></i>Returned</span></div>';
+            borderClass = 'border-red-200';
+            bgClass = 'bg-red-50';
         } else {
             calBadge = '<div class="mt-1"><span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded">Pending</span></div>';
         }
@@ -1534,6 +1585,29 @@ function collapseExpandedView() {
 }
 
 // View a faculty IPCR submission in preview modal
+function toRoman(num) {
+    var values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    var numerals = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    var result = '';
+    for (var i = 0; i < values.length; i++) {
+        while (num >= values[i]) {
+            result += numerals[i];
+            num -= values[i];
+        }
+    }
+    return result;
+}
+
+function renumberSoRows(tableBody) {
+    if (!tableBody) return;
+    var soSpans = tableBody.querySelectorAll('tr.bg-blue-100 span.font-semibold.text-gray-800');
+    var soNumber = 1;
+    soSpans.forEach(function(span) {
+        span.textContent = 'SO ' + toRoman(soNumber) + ':';
+        soNumber++;
+    });
+}
+
 window.viewFacultySubmission = async function(submissionId) {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
     const modal = document.getElementById('deanPreviewModal');
@@ -1544,6 +1618,7 @@ window.viewFacultySubmission = async function(submissionId) {
     const rateeEl = document.getElementById('deanPreviewRatee');
     const approvedByEl = document.getElementById('deanPreviewApprovedBy');
     const notedByEl = document.getElementById('deanPreviewNotedBy');
+    const feedbackEl = document.getElementById('deanPreviewFeedback');
     const statusEl = document.getElementById('deanPreviewStatus');
     const loading = document.getElementById('deanPreviewLoading');
     const content = document.getElementById('deanPreviewContent');
@@ -1569,6 +1644,12 @@ window.viewFacultySubmission = async function(submissionId) {
             if (rateeEl) rateeEl.textContent = sub.user_name || 'Unknown';
             if (approvedByEl) approvedByEl.textContent = sub.approved_by || '—';
             if (notedByEl) notedByEl.textContent = sub.noted_by || '—';
+            var calibrationDetails = sub.calibration || sub.latest_calibration || null;
+            if (feedbackEl) {
+                feedbackEl.value = calibrationDetails
+                    ? (calibrationDetails.dean_feedback || calibrationDetails.dean_comment || calibrationDetails.dean_suggestion || '')
+                    : '';
+            }
             if (statusEl) {
                 const st = sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : '';
                 statusEl.textContent = st;
@@ -1580,6 +1661,7 @@ window.viewFacultySubmission = async function(submissionId) {
             }
             if (tableBody && sub.table_body_html) {
                 tableBody.innerHTML = sub.table_body_html;
+                renumberSoRows(tableBody);
                 makeTableCalibrationEditable(tableBody);
                 if (sub.calibration && sub.calibration.calibration_data) {
                     applyCalibrationData(tableBody, sub.calibration.calibration_data);
@@ -1614,6 +1696,7 @@ window.viewDeanSubmission = async function(submissionId) {
     const rateeEl = document.getElementById('deanPreviewRatee');
     const approvedByEl = document.getElementById('deanPreviewApprovedBy');
     const notedByEl = document.getElementById('deanPreviewNotedBy');
+    const feedbackEl = document.getElementById('deanPreviewFeedback');
     const statusEl = document.getElementById('deanPreviewStatus');
     const loading = document.getElementById('deanPreviewLoading');
     const content = document.getElementById('deanPreviewContent');
@@ -1640,6 +1723,12 @@ window.viewDeanSubmission = async function(submissionId) {
             if (rateeEl) rateeEl.textContent = (sub.user_name || 'Unknown') + deptLabel;
             if (approvedByEl) approvedByEl.textContent = sub.approved_by || '—';
             if (notedByEl) notedByEl.textContent = sub.noted_by || '—';
+            var calibrationDetails = sub.calibration || sub.latest_calibration || null;
+            if (feedbackEl) {
+                feedbackEl.value = calibrationDetails
+                    ? (calibrationDetails.dean_feedback || calibrationDetails.dean_comment || calibrationDetails.dean_suggestion || '')
+                    : '';
+            }
             if (statusEl) {
                 const st = sub.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : '';
                 statusEl.textContent = st;
@@ -1651,6 +1740,7 @@ window.viewDeanSubmission = async function(submissionId) {
             }
             if (tableBody && sub.table_body_html) {
                 tableBody.innerHTML = sub.table_body_html;
+                renumberSoRows(tableBody);
                 makeTableCalibrationEditable(tableBody);
                 if (sub.calibration && sub.calibration.calibration_data) {
                     applyCalibrationData(tableBody, sub.calibration.calibration_data);
@@ -1845,11 +1935,19 @@ function collectCalibrationData(tableBody) {
 // Show/hide calibration buttons and status
 function showCalibrationButtons(calibration) {
     var draftBtn = document.getElementById('deanSaveDraftBtn');
+    var returnBtn = document.getElementById('deanReturnBtn');
     var calibrateBtn = document.getElementById('deanCalibrateBtn');
     var statusEl = document.getElementById('deanCalibrationStatus');
 
     draftBtn.classList.remove('hidden');
     calibrateBtn.classList.remove('hidden');
+    if (returnBtn) {
+        if (currentDeanPreviewType === 'faculty') {
+            returnBtn.classList.remove('hidden');
+        } else {
+            returnBtn.classList.add('hidden');
+        }
+    }
 
     if (calibration) {
         statusEl.classList.remove('hidden');
@@ -1858,6 +1956,10 @@ function showCalibrationButtons(calibration) {
             statusEl.textContent = 'Calibrated' + calibratedBy;
             statusEl.className = 'text-xs font-semibold px-2 py-1 rounded bg-green-100 text-green-700';
             calibrateBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>Recalibrate';
+        } else if (calibration.status === 'returned') {
+            statusEl.textContent = 'Returned';
+            statusEl.className = 'text-xs font-semibold px-2 py-1 rounded bg-red-100 text-red-700';
+            calibrateBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i>Calibrate';
         } else {
             statusEl.textContent = 'Draft';
             statusEl.className = 'text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-700';
@@ -1872,9 +1974,94 @@ function showCalibrationButtons(calibration) {
 // Reset calibration UI elements
 function resetCalibrationUI() {
     document.getElementById('deanSaveDraftBtn').classList.add('hidden');
+    document.getElementById('deanReturnBtn').classList.add('hidden');
     document.getElementById('deanCalibrateBtn').classList.add('hidden');
     document.getElementById('deanCalibrationStatus').classList.add('hidden');
+
+    var feedbackEl = document.getElementById('deanPreviewFeedback');
+    if (feedbackEl) feedbackEl.value = '';
+
+    var returnReasonEl = document.getElementById('deanReturnReason');
+    if (returnReasonEl) returnReasonEl.value = '';
 }
+
+window.openDeanReturnModal = function() {
+    if (!currentDeanPreviewSubmissionId || currentDeanPreviewType !== 'faculty') {
+        return;
+    }
+
+    var modal = document.getElementById('deanReturnModal');
+    var reasonEl = document.getElementById('deanReturnReason');
+    if (reasonEl) reasonEl.value = '';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    if (reasonEl) {
+        setTimeout(function() { reasonEl.focus(); }, 20);
+    }
+};
+
+window.closeDeanReturnModal = function() {
+    var modal = document.getElementById('deanReturnModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+};
+
+window.submitDeanReturn = async function() {
+    if (!currentDeanPreviewSubmissionId || currentDeanPreviewType !== 'faculty') {
+        return;
+    }
+
+    var reasonEl = document.getElementById('deanReturnReason');
+    var reason = reasonEl ? reasonEl.value.trim() : '';
+    if (!reason) {
+        alert('Please provide the reason for returning this IPCR.');
+        if (reasonEl) reasonEl.focus();
+        return;
+    }
+
+    var btn = document.getElementById('confirmDeanReturnBtn');
+    var originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Returning...</span>';
+    }
+
+    try {
+        var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        var response = await fetch('/dean/review/calibrations/return', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                ipcr_submission_id: currentDeanPreviewSubmissionId,
+                rejection_reason: reason
+            })
+        });
+
+        var data = await response.json();
+        if (!response.ok || !data.success) {
+            alert(data.message || 'Failed to return IPCR.');
+            return;
+        }
+
+        window.closeDeanReturnModal();
+        window.closeDeanPreviewModal();
+        alert('IPCR returned successfully. The faculty member has been notified and the submission is now unsubmitted.');
+        window.location.reload();
+    } catch (error) {
+        console.error('Error returning IPCR:', error);
+        alert('Failed to return IPCR. Please try again.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+};
 
 // Save calibration (draft or finalize)
 window.saveDeanCalibration = async function(status) {
@@ -1884,6 +2071,7 @@ window.saveDeanCalibration = async function(status) {
     var calibrationData = collectCalibrationData(tableBody);
     var avgEl = document.getElementById('deanPreviewAvgValue');
     var overallScore = avgEl ? parseFloat(avgEl.textContent) || 0 : 0;
+    var deanFeedback = document.getElementById('deanPreviewFeedback')?.value?.trim() || '';
 
     var actionLabel = status === 'calibrated' ? 'Calibrate' : 'Save Draft';
     if (status === 'calibrated') {
@@ -1921,7 +2109,8 @@ window.saveDeanCalibration = async function(status) {
                 ipcr_submission_id: currentDeanPreviewSubmissionId,
                 calibration_data: calibrationData,
                 overall_score: overallScore,
-                status: status
+                status: status,
+                dean_feedback: deanFeedback
             })
         });
         var data = await response.json();
@@ -1993,32 +2182,76 @@ function labelQetaInputsDean(tableBody) {
     });
 }
 
-// Compute and display overall average of all A values
+// Compute and display weighted overall average:
+// Strategic Objectives 35%, Core Functions 55%, Support Function 10%.
 function computeOverallAverage(tableBody) {
-    var allA = [];
+    var sectionScores = {
+        strategic: [],
+        core: [],
+        support: []
+    };
+
+    var currentSection = null;
+
     tableBody.querySelectorAll('tr').forEach(function(row) {
-        if (row.classList.contains('bg-green-100') ||
-            row.classList.contains('bg-purple-100') ||
-            row.classList.contains('bg-orange-100') ||
-            row.classList.contains('bg-blue-100') ||
+        if (row.classList.contains('bg-green-100')) {
+            currentSection = 'strategic';
+            return;
+        }
+
+        if (row.classList.contains('bg-purple-100')) {
+            currentSection = 'core';
+            return;
+        }
+
+        if (row.classList.contains('bg-orange-100')) {
+            currentSection = 'support';
+            return;
+        }
+
+        if (row.classList.contains('bg-gray-100') && row.querySelector('td[colspan]')) {
+            currentSection = null;
+            return;
+        }
+
+        if (row.classList.contains('bg-blue-100') ||
             row.classList.contains('bg-gray-100') ||
             row.querySelector('td[colspan]')) {
             return;
         }
+
+        if (!currentSection) {
+            return;
+        }
+
         var cells = row.querySelectorAll('td');
         if (cells.length >= 7) {
             var aInput = cells[6] ? cells[6].querySelector('input[type="number"]') : null;
             if (aInput && aInput.value) {
                 var val = parseFloat(aInput.value);
-                if (!isNaN(val)) allA.push(val);
+                if (!isNaN(val) && val > 0) {
+                    sectionScores[currentSection].push(val);
+                }
             }
         }
     });
+
+    function average(values) {
+        if (!values || values.length === 0) return 0;
+        return values.reduce(function(sum, value) { return sum + value; }, 0) / values.length;
+    }
+
+    var strategicAvg = average(sectionScores.strategic);
+    var coreAvg = average(sectionScores.core);
+    var supportAvg = average(sectionScores.support);
+    var hasAnyScore = sectionScores.strategic.length > 0 || sectionScores.core.length > 0 || sectionScores.support.length > 0;
+
     var container = document.getElementById('deanPreviewOverallAvg');
     var valueEl = document.getElementById('deanPreviewAvgValue');
-    if (allA.length > 0) {
-        var avg = allA.reduce(function(s, v) { return s + v; }, 0) / allA.length;
-        valueEl.textContent = avg.toFixed(2);
+
+    if (hasAnyScore) {
+        var weightedAvg = (strategicAvg * 0.35) + (coreAvg * 0.55) + (supportAvg * 0.10);
+        valueEl.textContent = weightedAvg.toFixed(2);
         container.classList.remove('hidden');
     } else {
         container.classList.add('hidden');
@@ -2160,6 +2393,7 @@ window.openReturnedCalibrationModal = function() {
 
     // Load original table HTML
     tableBody.innerHTML = tableHtml;
+    renumberSoRows(tableBody);
 
     // Apply calibration values and make everything read-only
     var dataRowIndex = 0;

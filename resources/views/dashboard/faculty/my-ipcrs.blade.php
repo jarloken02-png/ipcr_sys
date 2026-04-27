@@ -10,6 +10,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     @vite(['resources/css/dashboard_faculty_my-ipcrs.css', 'resources/js/dashboard_faculty_my-ipcrs.js'])
 </head>
+@php
+    $canAccessOpcr = auth()->user()->hasPermission('dean.opcr.templates')
+        || auth()->user()->hasPermission('dean.opcr.submissions')
+        || auth()->user()->hasPermission('dean.opcr.saved-copies')
+        || auth()->user()->hasPermission('director.dashboard');
+@endphp
 <body class="bg-gray-50" style="visibility: hidden;">
     <!-- Navigation Header -->
     <nav class="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -239,7 +245,7 @@
                                 <button id="ipcrTab" class="pb-3 sm:pb-4 px-1 border-b-2 border-blue-600 font-semibold text-blue-600 text-sm sm:text-base whitespace-nowrap" onclick="switchTab('ipcr')">
                                     IPCR Drafts
                                 </button>
-                                @if(auth()->user()->hasAnyRole(['dean', 'director']))
+                                @if($canAccessOpcr)
                                 <button id="opcrTab" class="pb-3 sm:pb-4 px-1 border-b-2 border-transparent font-semibold text-gray-500 text-sm sm:text-base whitespace-nowrap hover:text-gray-700" onclick="switchTab('opcr')">
                                     OPCR Drafts
                                 </button>
@@ -307,7 +313,7 @@
                         @endif
                     </div>
 
-                    @if(auth()->user()->hasAnyRole(['dean', 'director']))
+                    @if($canAccessOpcr)
                     <!-- OPCR Content Area -->
                     <div id="createOpcrButtonArea" class="hidden">
                         <!-- OPCR Saved Copies (rendered via Blade) -->
@@ -432,7 +438,7 @@
                         </div>
                     </div>
 
-                    @if(auth()->user()->hasAnyRole(['dean', 'director']))
+                    @if($canAccessOpcr)
                     <!-- Create OPCR Modal -->
                     <div id="createOpcrModal" class="fixed inset-0 z-50 hidden">
                         <div class="absolute inset-0 bg-black/50" onclick="closeCreateOpcrModal()"></div>
@@ -508,7 +514,7 @@
                     </div>
                     @endif
 
-                    @if(auth()->user()->hasAnyRole(['dean', 'director']))
+                    @if($canAccessOpcr)
                     <!-- OPCR Document Modal -->
                     <div id="opcrDocumentContainer" class="fixed inset-0 z-50 hidden">
                         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
@@ -1081,7 +1087,7 @@
                     </div>
                 </div>
 
-                @if(auth()->user()->hasAnyRole(['dean', 'director']))
+                @if($canAccessOpcr)
                 <!-- OPCR Templates -->
                 <div id="opcrTemplatesSection" class="bg-white rounded-lg shadow-sm p-4 sm:p-6 hidden">
                     <h3 class="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">OPCR Templates</h3>
@@ -1144,7 +1150,7 @@
                     </div>
                 </div>
 
-                @if(auth()->user()->hasAnyRole(['dean', 'director']))
+                @if($canAccessOpcr)
                 <!-- Submit OPCR -->
                 <div id="submitOpcrSection" class="bg-white rounded-lg shadow-sm p-4 sm:p-6 hidden">
                     <h3 class="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">Submit OPCR</h3>
@@ -1227,7 +1233,7 @@
         </div>
     </div>
 
-    @if(auth()->user()->hasAnyRole(['dean', 'director']))
+    @if($canAccessOpcr)
     <!-- Submit OPCR Modal -->
     <div id="submitOpcrModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full animate-scale-in">
@@ -1557,6 +1563,7 @@
                     const tableBody = document.getElementById('ipcrTableBody');
                     if (tableBody && data.table_body_html) {
                         tableBody.innerHTML = data.table_body_html;
+                        renumberSoHeaders(tableBody);
                         unhideTableColumns();
                         labelQetaInputs(tableBody);
                     }
@@ -1576,6 +1583,7 @@
                     const tableBody = document.getElementById('opcrTableBody');
                     if (tableBody && data.table_body_html) {
                         tableBody.innerHTML = data.table_body_html;
+                        renumberSoHeaders(tableBody);
                         unhideOpcrTableColumns();
                         labelQetaInputs(tableBody);
                     }
@@ -2354,15 +2362,7 @@
             const tableBody = document.getElementById('ipcrTableBody');
             if (!tableBody) return;
 
-            const rows = tableBody.querySelectorAll('tr.bg-blue-100');
-            let count = 0;
-            rows.forEach(row => {
-                const input = row.querySelector('input[type="text"]');
-                if (input && input.value.includes('SO')) {
-                    count += 1;
-                }
-            });
-            soHeaderCount = Math.max(1, count);
+            soHeaderCount = getSoHeaderCount(tableBody);
         }
 
         function unhideTableColumns() {
@@ -2397,6 +2397,7 @@
                     const tableBody = document.getElementById('ipcrTableBody');
                     if (tableBody && item.table_body_html) {
                         tableBody.innerHTML = item.table_body_html;
+                        renumberSoHeaders(tableBody);
                         
                         // Unhide columns for saved copy
                         unhideTableColumns();
@@ -2453,7 +2454,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             renderSavedCopies();
-            @if(auth()->user()->hasAnyRole(['dean', 'director']))
+            @if($canAccessOpcr)
             renderOpcrSavedCopies();
             @endif
             
@@ -2484,11 +2485,6 @@
             
             // Close dropdown after selection
             toggleSectionHeaderDropdown();
-            
-            // Reset SO counter for non-custom sections
-            if (!isEditable) {
-                soHeaderCount = 0;
-            }
             
             // Determine color based on section type
             let bgColor = 'bg-gray-100'; // Default for custom/others
@@ -2551,35 +2547,9 @@
         window.addSOHeader = function() {
             const tableBody = document.getElementById('ipcrTableBody');
             if (!tableBody) return;
-            
-            // Find the last section header (green, purple, or orange background)
-            const allRows = tableBody.querySelectorAll('tr');
-            let lastSectionIndex = -1;
-            
-            for (let i = allRows.length - 1; i >= 0; i--) {
-                const row = allRows[i];
-                if (row.classList.contains('bg-green-100') || 
-                    row.classList.contains('bg-purple-100') || 
-                    row.classList.contains('bg-orange-100')) {
-                    lastSectionIndex = i;
-                    break;
-                }
-            }
-            
-            // Count existing SO headers after the last section header
-            let currentSOCount = 0;
-            for (let i = lastSectionIndex + 1; i < allRows.length; i++) {
-                const row = allRows[i];
-                if (row.classList.contains('bg-blue-100')) {
-                    const span = row.querySelector('span.font-semibold.text-gray-800');
-                    if (span && span.textContent.includes('SO')) {
-                        currentSOCount++;
-                    }
-                }
-            }
-            
-            // Set next SO number
-            const nextSONumber = currentSOCount + 1;
+
+            // Keep SO numbering continuous across all sections.
+            const nextSONumber = getSoHeaderCount(tableBody) + 1;
             const soLabel = convertToRoman(nextSONumber);
             
             // Create new SO header row
@@ -2596,6 +2566,7 @@
             
             // Append to table
             tableBody.appendChild(newRow);
+            renumberSoHeaders(tableBody);
         }
 
         // Convert number to Roman numeral
@@ -2624,6 +2595,32 @@
                 }
             }
             return result;
+        }
+
+        function getSoHeaderCount(tableBody) {
+            if (!tableBody) return 0;
+            return tableBody.querySelectorAll('tr.bg-blue-100 span.font-semibold.text-gray-800').length;
+        }
+
+        function renumberSoHeaders(tableBodyOrId) {
+            const tableBody = typeof tableBodyOrId === 'string'
+                ? document.getElementById(tableBodyOrId)
+                : tableBodyOrId;
+
+            if (!tableBody) return;
+
+            const soSpans = tableBody.querySelectorAll('tr.bg-blue-100 span.font-semibold.text-gray-800');
+            let soNumber = 1;
+            soSpans.forEach(span => {
+                span.textContent = `SO ${convertToRoman(soNumber)}:`;
+                soNumber++;
+            });
+
+            if (tableBody.id === 'ipcrTableBody') {
+                soHeaderCount = soSpans.length;
+            } else if (tableBody.id === 'opcrTableBody') {
+                opcrSoHeaderCount = soSpans.length;
+            }
         }
 
         window.addDataRow = function() {
@@ -2685,7 +2682,11 @@
             const rows = tableBody.querySelectorAll('tr');
             for (let i = rows.length - 1; i >= 0; i--) {
                 if (rows[i].classList.contains('bg-blue-100') || rows[i].classList.contains('bg-blue-50')) {
+                    const isSoHeader = rows[i].classList.contains('bg-blue-100');
                     rows[i].remove();
+                    if (isSoHeader) {
+                        renumberSoHeaders(tableBody);
+                    }
                     break;
                 }
             }
@@ -2702,7 +2703,7 @@
                     const span = rows[i].querySelector('span');
                     if (span && span.textContent.includes('SO')) {
                         rows[i].remove();
-                        soHeaderCount--;
+                        renumberSoHeaders(tableBody);
                         break;
                     }
                 }
@@ -2733,7 +2734,12 @@
             // Remove the last row in the table body
             const rows = tableBody.querySelectorAll('tr');
             if (rows.length > 0) {
-                rows[rows.length - 1].remove();
+                const lastRow = rows[rows.length - 1];
+                const isSoHeader = lastRow.classList.contains('bg-blue-100');
+                lastRow.remove();
+                if (isSoHeader) {
+                    renumberSoHeaders(tableBody);
+                }
             }
         }
 
@@ -3124,6 +3130,7 @@
                         const tableBody = document.getElementById('templatePreviewTableBody');
                         if (tableBody) {
                             tableBody.innerHTML = template.table_body_html;
+                            renumberSoHeaders(tableBody);
                         }
 
                         // Load title
@@ -4063,6 +4070,7 @@
                             const tableBody = document.getElementById('templatePreviewTableBody');
                             if (tableBody) {
                                 tableBody.innerHTML = template.table_body_html;
+                                renumberSoHeaders(tableBody);
                             }
 
                             // Load title
@@ -4151,6 +4159,7 @@
                         const tableBody = document.getElementById('ipcrTableBody');
                         if (tableBody && submission.table_body_html) {
                             tableBody.innerHTML = submission.table_body_html;
+                            renumberSoHeaders(tableBody);
                         }
 
                         // Label QETA inputs, make sure all columns are visible
@@ -4219,6 +4228,7 @@
                         const tableBody = document.getElementById('templatePreviewTableBody');
                         if (tableBody && submission.table_body_html) {
                             tableBody.innerHTML = submission.table_body_html;
+                            renumberSoHeaders(tableBody);
                             console.log('Table loaded, HTML length:', tableBody.innerHTML.length);
                             
                             // Make all table cells editable
@@ -4486,8 +4496,6 @@
 
             toggleOpcrSectionHeaderDropdown();
 
-            if (!isEditable) opcrSoHeaderCount = 0;
-
             let bgColor = 'bg-gray-100';
             if (!isEditable) {
                 if (headerText === 'Strategic Objectives') bgColor = 'bg-green-100';
@@ -4523,29 +4531,7 @@
             const tableBody = document.getElementById('opcrTableBody');
             if (!tableBody) return;
 
-            const allRows = tableBody.querySelectorAll('tr');
-            let lastSectionIndex = -1;
-
-            for (let i = allRows.length - 1; i >= 0; i--) {
-                const row = allRows[i];
-                if (row.classList.contains('bg-green-100') ||
-                    row.classList.contains('bg-purple-100') ||
-                    row.classList.contains('bg-orange-100')) {
-                    lastSectionIndex = i;
-                    break;
-                }
-            }
-
-            let currentSOCount = 0;
-            for (let i = lastSectionIndex + 1; i < allRows.length; i++) {
-                const row = allRows[i];
-                if (row.classList.contains('bg-blue-100')) {
-                    const span = row.querySelector('span.font-semibold.text-gray-800');
-                    if (span && span.textContent.includes('SO')) currentSOCount++;
-                }
-            }
-
-            const nextSONumber = currentSOCount + 1;
+            const nextSONumber = getSoHeaderCount(tableBody) + 1;
             const soLabel = convertToRoman(nextSONumber);
 
             const newRow = document.createElement('tr');
@@ -4560,6 +4546,7 @@
             `;
 
             tableBody.appendChild(newRow);
+            renumberSoHeaders(tableBody);
         }
 
         window.addOpcrDataRow = function() {
@@ -4608,7 +4595,14 @@
             if (!tableBody) return;
 
             const rows = tableBody.querySelectorAll('tr');
-            if (rows.length > 0) rows[rows.length - 1].remove();
+            if (rows.length > 0) {
+                const lastRow = rows[rows.length - 1];
+                const isSoHeader = lastRow.classList.contains('bg-blue-100');
+                lastRow.remove();
+                if (isSoHeader) {
+                    renumberSoHeaders(tableBody);
+                }
+            }
         }
 
         function extractOpcrSoCounts() {
@@ -4963,6 +4957,7 @@
                     const tableBody = document.getElementById('opcrTableBody');
                     if (tableBody && copy.table_body_html) {
                         tableBody.innerHTML = copy.table_body_html;
+                        renumberSoHeaders(tableBody);
                         
                         // Unhide columns for saved copy
                         unhideOpcrTableColumns();
@@ -5672,6 +5667,7 @@
                     const tableBody = document.getElementById('opcrTableBody');
                     if (tableBody && template.table_body_html) {
                         tableBody.innerHTML = template.table_body_html;
+                        renumberSoHeaders(tableBody);
                         unhideOpcrTableColumns();
                         // Label QETA inputs and set up auto-computation
                         labelQetaInputs(tableBody);
@@ -5708,6 +5704,7 @@
                         const tableBody = document.getElementById('templatePreviewTableBody');
                         if (tableBody) {
                             tableBody.innerHTML = template.table_body_html;
+                            renumberSoHeaders(tableBody);
                         }
 
                         const titleElement = document.getElementById('templatePreviewTitle');
@@ -5948,6 +5945,7 @@
                     var tableBody = document.getElementById('opcrTableBody');
                     if (tableBody && submission.table_body_html) {
                         tableBody.innerHTML = submission.table_body_html;
+                        renumberSoHeaders(tableBody);
                     }
 
                     // Label QETA inputs and ensure all columns are visible

@@ -13,6 +13,8 @@ class DeanCalibration extends Model
         'calibration_data',
         'overall_score',
         'status',
+        'dean_comment',
+        'dean_suggestion',
     ];
 
     protected $casts = [

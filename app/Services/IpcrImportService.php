@@ -164,7 +164,6 @@ class IpcrImportService
     {
         $html = '';
         $soCounter = 0;
-        $currentSection = null;
 
         for ($r = $startRow; $r <= $endRow; $r++) {
             $rowType = $this->classifyRow($sheet, $r);
@@ -173,8 +172,6 @@ class IpcrImportService
                 case 'section-header':
                     $text = $this->cellText($sheet, "A{$r}");
                     $section = $this->detectSection($text);
-                    $currentSection = $section;
-                    $soCounter = 0; // Reset SO counter for each section
                     $colorClass = self::SECTION_COLORS[$section] ?? 'bg-gray-100';
                     $html .= $this->buildSectionHeaderRow($text, $colorClass, $section !== 'default');
                     break;

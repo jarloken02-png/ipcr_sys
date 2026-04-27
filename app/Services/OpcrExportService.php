@@ -229,6 +229,7 @@ class OpcrExportService
 
         $xpath   = new DOMXPath($dom);
         $trNodes = $xpath->query('//tr');
+        $soCounter = 1;
 
         foreach ($trNodes as $tr) {
             $class = $tr->getAttribute('class') ?? '';
@@ -242,8 +243,9 @@ class OpcrExportService
             } elseif ($this->isSOHeader($class)) {
                 $rows[] = [
                     'type' => 'so-header',
-                    'text' => $this->extractSOHeaderText($tr, $xpath),
+                    'text' => $this->extractSOHeaderText($tr, $xpath, $soCounter),
                 ];
+                $soCounter++;
             } else {
                 $rows[] = [
                     'type'  => 'data',
@@ -304,16 +306,9 @@ class OpcrExportService
         return '';
     }
 
-    private function extractSOHeaderText($tr, DOMXPath $xpath): string
+    private function extractSOHeaderText($tr, DOMXPath $xpath, int $soNumber): string
     {
-        $parts = [];
-
-        $spans = $xpath->query('.//span', $tr);
-        if ($spans->length > 0) {
-            $label = trim($spans->item(0)->textContent);
-            $label = preg_replace('/^(SO\s+[IVXLCDM]+):/', '$1.', $label);
-            $parts[] = $label;
-        }
+        $parts = [$this->formatSoLabel($soNumber)];
 
         $inputs = $xpath->query('.//input[@type="text"]', $tr);
         if ($inputs->length > 0) {
@@ -323,11 +318,53 @@ class OpcrExportService
             }
         }
 
+        if (count($parts) === 1) {
+            $rawText = trim($tr->textContent);
+            $rawText = preg_replace('/^SO\s+[IVXLCDM]+[:.]?\s*/i', '', $rawText);
+            if (!empty($rawText)) {
+                $parts[] = strtoupper($rawText);
+            }
+        }
+
         if (!empty($parts)) {
             return implode(' ', $parts);
         }
 
         return trim($tr->textContent);
+    }
+
+    private function formatSoLabel(int $number): string
+    {
+        return 'SO ' . $this->toRoman(max(1, $number)) . '.';
+    }
+
+    private function toRoman(int $number): string
+    {
+        $map = [
+            1000 => 'M',
+            900 => 'CM',
+            500 => 'D',
+            400 => 'CD',
+            100 => 'C',
+            90 => 'XC',
+            50 => 'L',
+            40 => 'XL',
+            10 => 'X',
+            9 => 'IX',
+            5 => 'V',
+            4 => 'IV',
+            1 => 'I',
+        ];
+
+        $roman = '';
+        foreach ($map as $value => $numeral) {
+            while ($number >= $value) {
+                $roman .= $numeral;
+                $number -= $value;
+            }
+        }
+
+        return $roman;
     }
 
     private function extractDataCells($tr, DOMXPath $xpath): array
@@ -442,26 +479,49 @@ class OpcrExportService
 
     private function writeSummarySection($sheet, int $row, array $sectionRatings, ?string $notedBy = null, ?string $approvedBy = null): int
     {
-        $sectionLabels = [
-            'strategic-objectives' => 'Strategic Objectives:',
-            'core-functions'       => 'Core Functions:',
-            'support-function'     => 'Support Function:',
+        $sectionWeights = [
+            'strategic-objectives' => 0.35,
+            'core-functions' => 0.55,
+            'support-function' => 0.10,
         ];
 
-        $overallSum   = 0;
-        $overallCount = 0;
+        $sectionWeightLabels = [
+            'strategic-objectives' => '35%',
+            'core-functions' => '55%',
+            'support-function' => '10%',
+        ];
 
-        foreach ($sectionLabels as $key => $label) {
-            $ratings = $sectionRatings[$key] ?? [];
-            $overallSum   += array_sum($ratings);
-            $overallCount += count($ratings);
+        $sectionAverages = [];
+        $hasAnyScore = false;
+
+        foreach ($sectionWeights as $sectionKey => $weight) {
+            $ratings = array_values(array_filter(
+                $sectionRatings[$sectionKey] ?? [],
+                fn ($value) => is_numeric($value)
+            ));
+
+            if (count($ratings) > 0) {
+                $sectionAverages[$sectionKey] = array_sum($ratings) / count($ratings);
+                $hasAnyScore = true;
+            } else {
+                $sectionAverages[$sectionKey] = 0.0;
+            }
         }
 
-        $finalAverage = $overallCount > 0 ? $overallSum / $overallCount : 0;
+        $finalAverage = $hasAnyScore
+            ? round(
+                ($sectionAverages['strategic-objectives'] * $sectionWeights['strategic-objectives']) +
+                ($sectionAverages['core-functions'] * $sectionWeights['core-functions']) +
+                ($sectionAverages['support-function'] * $sectionWeights['support-function']),
+                2
+            )
+            : null;
 
         // Strategic Objectives / Total Overall Rating
         $sheet->setCellValue("A{$row}", 'Strategic Objectives:');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+        $sheet->setCellValue("B{$row}", $sectionWeightLabels['strategic-objectives']);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue("D{$row}", 'Total Overall Rating:');
         $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setSize(10);
         $this->applyBorderRow($sheet, $row);
@@ -470,9 +530,11 @@ class OpcrExportService
         // Core Functions / Final Average Rating
         $sheet->setCellValue("A{$row}", 'Core Functions:');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+        $sheet->setCellValue("B{$row}", $sectionWeightLabels['core-functions']);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue("D{$row}", 'Final Average Rating:');
         $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setSize(10);
-        if ($finalAverage > 0) {
+        if ($finalAverage !== null) {
             $sheet->setCellValue("G{$row}", number_format($finalAverage, 2));
             $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
@@ -482,9 +544,11 @@ class OpcrExportService
         // Support Function / Adjectival Rating
         $sheet->setCellValue("A{$row}", 'Support Function:');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+        $sheet->setCellValue("B{$row}", $sectionWeightLabels['support-function']);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue("D{$row}", 'Adjectival Rating:');
         $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setSize(10);
-        if ($finalAverage > 0) {
+        if ($finalAverage !== null) {
             $sheet->setCellValue("G{$row}", $this->getAdjectivalRating($finalAverage));
             $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }

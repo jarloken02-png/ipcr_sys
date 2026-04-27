@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DeanCalibration;
 use App\Models\IpcrSubmission;
 use App\Models\User;
 use DOMDocument;
@@ -54,6 +55,7 @@ class IpcrExportService
         // ── 1.  Update header placeholders ──────────────────────────
         $user = $document->user;
         $signatories = $this->resolveSignatories($user, $document);
+        $deanFeedback = $this->resolveDeanFeedback($document);
         $this->fillHeaderData($sheet, $user, $document, $signatories['noted_by'], $signatories['approved_by']);
 
         // ── 2.  Parse the stored HTML table body ────────────────────
@@ -96,7 +98,8 @@ class IpcrExportService
             $currentRow,
             $sectionRatings,
             $signatories['noted_by'],
-            $signatories['approved_by']
+            $signatories['approved_by'],
+            $deanFeedback['dean_feedback']
         );
 
         // ── 7.  Save to temp file ──────────────────────────────────
@@ -219,6 +222,7 @@ class IpcrExportService
 
         $xpath = new DOMXPath($dom);
         $trNodes = $xpath->query('//tr');
+        $soCounter = 1;
 
         foreach ($trNodes as $tr) {
             $class = $tr->getAttribute('class') ?? '';
@@ -232,8 +236,9 @@ class IpcrExportService
             } elseif ($this->isSOHeader($class)) {
                 $rows[] = [
                     'type' => 'so-header',
-                    'text' => $this->extractSOHeaderText($tr, $xpath),
+                    'text' => $this->extractSOHeaderText($tr, $xpath, $soCounter),
                 ];
+                $soCounter++;
             } else {
                 $rows[] = [
                     'type'  => 'data',
@@ -297,17 +302,9 @@ class IpcrExportService
     /**
      * Extract SO sub-header text (e.g. "SO I. PROMOTING ACCESS TO QUALITY EDUCATION").
      */
-    private function extractSOHeaderText($tr, DOMXPath $xpath): string
+    private function extractSOHeaderText($tr, DOMXPath $xpath, int $soNumber): string
     {
-        $parts = [];
-
-        $spans = $xpath->query('.//span', $tr);
-        if ($spans->length > 0) {
-            $label = trim($spans->item(0)->textContent);
-            // Normalize "SO I:" → "SO I." to match the template style
-            $label = preg_replace('/^(SO\s+[IVXLCDM]+):/', '$1.', $label);
-            $parts[] = $label;
-        }
+        $parts = [$this->formatSoLabel($soNumber)];
 
         $inputs = $xpath->query('.//input[@type="text"]', $tr);
         if ($inputs->length > 0) {
@@ -317,11 +314,53 @@ class IpcrExportService
             }
         }
 
+        if (count($parts) === 1) {
+            $rawText = trim($tr->textContent);
+            $rawText = preg_replace('/^SO\s+[IVXLCDM]+[:.]?\s*/i', '', $rawText);
+            if (!empty($rawText)) {
+                $parts[] = strtoupper($rawText);
+            }
+        }
+
         if (!empty($parts)) {
             return implode(' ', $parts);
         }
 
         return trim($tr->textContent);
+    }
+
+    private function formatSoLabel(int $number): string
+    {
+        return 'SO ' . $this->toRoman(max(1, $number)) . '.';
+    }
+
+    private function toRoman(int $number): string
+    {
+        $map = [
+            1000 => 'M',
+            900 => 'CM',
+            500 => 'D',
+            400 => 'CD',
+            100 => 'C',
+            90 => 'XC',
+            50 => 'L',
+            40 => 'XL',
+            10 => 'X',
+            9 => 'IX',
+            5 => 'V',
+            4 => 'IV',
+            1 => 'I',
+        ];
+
+        $roman = '';
+        foreach ($map as $value => $numeral) {
+            while ($number >= $value) {
+                $roman .= $numeral;
+                $number -= $value;
+            }
+        }
+
+        return $roman;
     }
 
     /**
@@ -484,31 +523,58 @@ class IpcrExportService
      *   Row N+7: Calibrated by:        |     | Approved by:
      *   Row N+8: (PMT Chairperson)     |     | (Agency Head)
      */
-    private function writeSummarySection($sheet, int $row, array $sectionRatings, ?string $notedBy = null, ?string $approvedBy = null): int
+    private function writeSummarySection(
+        $sheet,
+        int $row,
+        array $sectionRatings,
+        ?string $notedBy = null,
+        ?string $approvedBy = null,
+        ?string $deanFeedback = null
+    ): int
     {
-        $sectionLabels = [
-            'strategic-objectives' => 'Strategic Objectives:',
-            'core-functions'       => 'Core Functions:',
-            'support-function'     => 'Support Function:',
+        $sectionWeights = [
+            'strategic-objectives' => 0.35,
+            'core-functions' => 0.55,
+            'support-function' => 0.10,
         ];
 
-        $overallSum   = 0;
-        $overallCount = 0;
-        $sectionAverages = [];
+        $sectionWeightLabels = [
+            'strategic-objectives' => '35%',
+            'core-functions' => '55%',
+            'support-function' => '10%',
+        ];
 
-        foreach ($sectionLabels as $key => $label) {
-            $ratings = $sectionRatings[$key] ?? [];
-            $avg = count($ratings) > 0 ? array_sum($ratings) / count($ratings) : 0;
-            $sectionAverages[$key] = $avg;
-            $overallSum   += array_sum($ratings);
-            $overallCount += count($ratings);
+        $sectionAverages = [];
+        $hasAnyScore = false;
+
+        foreach ($sectionWeights as $sectionKey => $weight) {
+            $ratings = array_values(array_filter(
+                $sectionRatings[$sectionKey] ?? [],
+                fn ($value) => is_numeric($value)
+            ));
+
+            if (count($ratings) > 0) {
+                $sectionAverages[$sectionKey] = array_sum($ratings) / count($ratings);
+                $hasAnyScore = true;
+            } else {
+                $sectionAverages[$sectionKey] = 0.0;
+            }
         }
 
-        $finalAverage = $overallCount > 0 ? $overallSum / $overallCount : 0;
+        $finalAverage = $hasAnyScore
+            ? round(
+                ($sectionAverages['strategic-objectives'] * $sectionWeights['strategic-objectives']) +
+                ($sectionAverages['core-functions'] * $sectionWeights['core-functions']) +
+                ($sectionAverages['support-function'] * $sectionWeights['support-function']),
+                2
+            )
+            : null;
 
         // ── Strategic Objectives / Total Overall Rating ─────────────
         $sheet->setCellValue("A{$row}", 'Strategic Objectives:');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+        $sheet->setCellValue("B{$row}", $sectionWeightLabels['strategic-objectives']);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue("D{$row}", 'Total Overall Rating:');
         $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setSize(10);
         $this->applyBorderRow($sheet, $row);
@@ -517,9 +583,11 @@ class IpcrExportService
         // ── Core Functions / Final Average Rating ───────────────────
         $sheet->setCellValue("A{$row}", 'Core Functions:');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+        $sheet->setCellValue("B{$row}", $sectionWeightLabels['core-functions']);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue("D{$row}", 'Final Average Rating:');
         $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setSize(10);
-        if ($finalAverage > 0) {
+        if ($finalAverage !== null) {
             $sheet->setCellValue("G{$row}", number_format($finalAverage, 2));
             $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
@@ -529,9 +597,11 @@ class IpcrExportService
         // ── Support Function / Adjectival Rating ────────────────────
         $sheet->setCellValue("A{$row}", 'Support Function:');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+        $sheet->setCellValue("B{$row}", $sectionWeightLabels['support-function']);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue("D{$row}", 'Adjectival Rating:');
         $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setSize(10);
-        if ($finalAverage > 0) {
+        if ($finalAverage !== null) {
             $sheet->setCellValue("G{$row}", $this->getAdjectivalRating($finalAverage));
             $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
@@ -545,11 +615,23 @@ class IpcrExportService
         $this->applyBorderRow($sheet, $row);
         $row++;
 
-        // Two blank comment rows
-        for ($i = 0; $i < 2; $i++) {
-            $this->applyBorderRow($sheet, $row);
-            $row++;
-        }
+        $sheet->mergeCells("A{$row}:H{$row}");
+        $sheet->setCellValue("A{$row}", 'Dean Feedback: ' . trim((string) ($deanFeedback ?? '')));
+        $sheet->getStyle("A{$row}")->getAlignment()
+            ->setWrapText(true)
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_TOP);
+        $this->applyBorderRow($sheet, $row);
+        $row++;
+
+        $sheet->mergeCells("A{$row}:H{$row}");
+        $sheet->setCellValue("A{$row}", '');
+        $sheet->getStyle("A{$row}")->getAlignment()
+            ->setWrapText(true)
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_TOP);
+        $this->applyBorderRow($sheet, $row);
+        $row++;
 
         // Blank separator
         $row++;
@@ -664,6 +746,44 @@ class IpcrExportService
             'noted_by' => $deanName !== '' ? $deanName : (string) ($document->noted_by ?? ''),
             'approved_by' => $directorName !== '' ? $directorName : (string) ($document->approved_by ?? ''),
         ];
+    }
+
+    /**
+     * Resolve latest calibrated dean feedback for IPCR submissions.
+     */
+    private function resolveDeanFeedback(Model $document): array
+    {
+        if (! $document instanceof IpcrSubmission) {
+            return [
+                'dean_feedback' => '',
+            ];
+        }
+
+        $latestCalibration = DeanCalibration::query()
+            ->where('ipcr_submission_id', $document->id)
+            ->where('status', 'calibrated')
+            ->orderByDesc('updated_at')
+            ->first();
+
+        return [
+            'dean_feedback' => $this->mergeDeanFeedbackParts(
+                $latestCalibration?->dean_comment,
+                $latestCalibration?->dean_suggestion
+            ),
+        ];
+    }
+
+    /**
+     * Combine legacy comment/suggestion values to one dean feedback string.
+     */
+    private function mergeDeanFeedbackParts(?string $comment, ?string $suggestion): string
+    {
+        $parts = array_filter([
+            trim((string) $comment),
+            trim((string) $suggestion),
+        ], fn ($value) => $value !== '');
+
+        return implode("\n\n", $parts);
     }
 
     /**
